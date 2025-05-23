@@ -39,11 +39,11 @@ def parse_args():
     # 데이터 설정
     parser.add_argument('--labeled-ratio', type=float, default=10,
                       help='레이블이 있는 데이터의 비율 (1, 2, 5, 10)')
-    parser.add_argument('--max-samples', type=int, default=100,
+    parser.add_argument('--max-samples', type=int, default=None,
                       help='학습에 사용할 최대 샘플 수 (테스트용, 기본값: None은 전체 데이터 사용)')
     
     # 학습 설정
-    parser.add_argument('--batch-size', type=int, default=16,
+    parser.add_argument('--batch-size', type=int, default=32,
                       help='배치 크기')
     parser.add_argument('--epochs', type=int, default=100,
                       help='학습 에포크 수')
@@ -62,9 +62,6 @@ def parse_args():
     parser.add_argument('--entropy-threshold', type=float, default=0.5,
                       help='클래스 엔트로피 임계값')
     
-    # 저장 설정
-    parser.add_argument('--save-dir', type=str, default='results',
-                      help='결과 저장 디렉토리')
     
     return parser.parse_args()
 
@@ -109,6 +106,7 @@ def train_one_epoch(
     device: str,
     epoch: int,
     logger: logging.Logger,
+    config: dict,
     pseudo_label_weight: float = 0.5,
     pseudo_label_start_epoch: int = 10,
     conf_threshold: float = 0.5
@@ -121,9 +119,12 @@ def train_one_epoch(
     # 의사 레이블 생성
     if epoch >= pseudo_label_start_epoch:
         pseudo_labels = update_pseudo_labels(
-            model, unlabeled_loader, detector,
+            model=model,
+            unlabeled_loader=unlabeled_loader,
+            detector=detector,
             conf_threshold=conf_threshold,
-            device=device
+            device=device,
+            config=config
         )
         logger.info(f"Generated {len(pseudo_labels)} pseudo labels")
     
@@ -212,8 +213,9 @@ def get_run_dir(model_name: str, labeled_ratio: float) -> Path:
     Returns:
         실행 디렉토리 경로
     """
-    base_dir = Path("runs")
-    base_dir.mkdir(exist_ok=True)
+    # runs/train 디렉토리 생성
+    base_dir = Path("runs") / "train"
+    base_dir.mkdir(parents=True, exist_ok=True)
     
     # 기본 실행 디렉토리 이름 생성
     run_name = f"{model_name}_label_p{labeled_ratio}"
@@ -239,7 +241,7 @@ def get_run_dir(model_name: str, labeled_ratio: float) -> Path:
         run_dir = base_dir / f"{run_name}_{max_num + 1}"
     
     # 디렉토리 생성
-    run_dir.mkdir(exist_ok=True)
+    run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
 
 def evaluate_model(model, val_loader, device, epoch, save_dir):
@@ -407,8 +409,15 @@ def main():
     for epoch in range(start_epoch, args.epochs):
         # 한 에포크 학습
         train_loss = train_one_epoch(
-            model, labeled_loader, unlabeled_loader,
-            optimizer, detector, args.device, epoch, logger,
+            model=model,
+            labeled_loader=labeled_loader,
+            unlabeled_loader=unlabeled_loader,
+            optimizer=optimizer,
+            detector=detector,
+            device=args.device,
+            epoch=epoch,
+            logger=logger,
+            config=config,
             pseudo_label_weight=config['training']['semi_supervised']['pseudo_label_weight'],
             pseudo_label_start_epoch=config['training']['semi_supervised']['pseudo_label_start_epoch'],
             conf_threshold=config['training']['semi_supervised']['conf_threshold']

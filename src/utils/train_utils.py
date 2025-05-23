@@ -74,7 +74,9 @@ def update_pseudo_labels(
     unlabeled_loader,
     detector,
     conf_threshold=0.5,
-    device='cuda'
+    device='cuda',
+    max_pseudo_labels=None,  # 최대 의사 레이블 개수 제한 추가
+    config=None  # 설정 파일 추가
 ):
     """Unlabeled 데이터에 대한 의사 레이블 생성
 
@@ -84,85 +86,91 @@ def update_pseudo_labels(
         detector: MC Dropout 탐지기
         conf_threshold: 신뢰도 임계값
         device: 실행 디바이스
+        max_pseudo_labels: 최대 의사 레이블 개수 (None인 경우 제한 없음)
+        config: YOLO 설정 파일
 
     Returns:
         list: 의사 레이블 리스트. 각 요소는 {'boxes': boxes, 'scores': scores, 'labels': labels} 형태
     """
     model.eval()
     pseudo_labels = []
+    total_labels = 0  # 전체 의사 레이블 개수 추적
+    
+    # 설정 파일에서 max_pseudo_labels 값을 가져옴
+    if config is not None and 'semi_supervised' in config:
+        max_pseudo_labels = config['semi_supervised'].get('max_pseudo_labels', max_pseudo_labels)
     
     try:
         pbar = tqdm(unlabeled_loader, desc='Generating pseudo-labels')
         for batch in pbar:
+            # 최대 개수 도달 시 중단
+            if max_pseudo_labels is not None and total_labels >= max_pseudo_labels:
+                break
+                
             images = batch['images'].to(device)
             
             # MC Dropout을 통한 불확실성 추정
             with torch.no_grad():
                 try:
-                    uncertainty_results = detector.predict_with_uncertainty(images)
+                    batch_results = detector.predict_with_uncertainty(images)
                     
-                    # uncertainty_results가 None이거나 빈 경우 처리
-                    if uncertainty_results is None:
+                    # batch_results가 None이거나 빈 경우 처리
+                    if batch_results is None:
                         # 배치의 각 이미지에 대해 빈 레이블 추가
                         for _ in range(len(images)):
+                            if max_pseudo_labels is not None and total_labels >= max_pseudo_labels:
+                                break
                             pseudo_labels.append({
                                 'boxes': torch.zeros((0, 5), device=device),
                                 'scores': torch.zeros(0, device=device),
                                 'labels': torch.zeros(0, dtype=torch.long, device=device)
                             })
+                            total_labels += 1
                         continue
                     
-                    # 각 이미지에 대한 의사 레이블 생성
-                    for idx in range(len(images)):
-                        # 예측 결과가 없는 경우
-                        if idx >= len(uncertainty_results):
+                    # 각 이미지의 예측 결과를 의사 레이블로 변환
+                    for pred in batch_results:
+                        if max_pseudo_labels is not None and total_labels >= max_pseudo_labels:
+                            break
+                            
+                        if len(pred['boxes']) > 0:
+                            # YOLO 형식으로 변환 [class_id, x_center, y_center, width, height]
+                            boxes_with_classes = torch.cat([
+                                pred['labels'].float().unsqueeze(1),  # class_id
+                                pred['boxes']  # x, y, w, h
+                            ], dim=1)
+                            
+                            pseudo_labels.append({
+                                'boxes': boxes_with_classes,
+                                'scores': pred['scores'],
+                                'labels': pred['labels']
+                            })
+                        else:
+                            # 예측이 없는 경우 빈 레이블 추가
                             pseudo_labels.append({
                                 'boxes': torch.zeros((0, 5), device=device),
                                 'scores': torch.zeros(0, device=device),
                                 'labels': torch.zeros(0, dtype=torch.long, device=device)
                             })
-                            continue
-                        
-                        pred = uncertainty_results[idx]
-                        if pred is None or not pred:
-                            pseudo_labels.append({
-                                'boxes': torch.zeros((0, 5), device=device),
-                                'scores': torch.zeros(0, device=device),
-                                'labels': torch.zeros(0, dtype=torch.long, device=device)
-                            })
-                            continue
-                        
-                        # 예측 결과가 있는 경우
-                        boxes = pred.get('boxes', torch.zeros((0, 5), device=device))
-                        scores = pred.get('scores', torch.zeros(0, device=device))
-                        labels = pred.get('labels', torch.zeros(0, dtype=torch.long, device=device))
-                        
-                        # 신뢰도가 높은 예측만 선택
-                        if isinstance(scores, torch.Tensor) and len(scores) > 0:
-                            confident_mask = scores > conf_threshold
-                            boxes = boxes[confident_mask] if len(boxes) > 0 else boxes
-                            scores = scores[confident_mask] if len(scores) > 0 else scores
-                            labels = labels[confident_mask] if len(labels) > 0 else labels
-                        
-                        pseudo_labels.append({
-                            'boxes': boxes,
-                            'scores': scores,
-                            'labels': labels
-                        })
+                        total_labels += 1
                         
                 except Exception as e:
                     print(f"Error in MC Dropout prediction: {str(e)}")
                     # 에러 발생 시 빈 레이블 추가
                     for _ in range(len(images)):
+                        if max_pseudo_labels is not None and total_labels >= max_pseudo_labels:
+                            break
                         pseudo_labels.append({
                             'boxes': torch.zeros((0, 5), device=device),
                             'scores': torch.zeros(0, device=device),
                             'labels': torch.zeros(0, dtype=torch.long, device=device)
                         })
+                        total_labels += 1
     except Exception as e:
         print(f"Error in pseudo-label generation: {str(e)}")
         return []
     
+    print(f"Generated {len(pseudo_labels)} pseudo labels")
     model.train()
     return pseudo_labels
 

@@ -12,7 +12,7 @@ model:
 inference:
   conf_threshold: 0.25
   device: null  # null for auto-detection, or specify 'cpu', 'cuda:0', etc.
-  save_dir: "results"
+  
 
 data:
   # 데이터셋 경로
@@ -32,7 +32,7 @@ data:
   
   # 이미지 설정
   img_size: 640  # 입력 이미지 크기
-  batch_size: 16  # 배치 크기
+  batch_size: 64  # 배치 크기
   num_workers: 4
   augment: true  # 데이터 증강 사용 여부
 
@@ -63,9 +63,10 @@ training:
   
   # Semi-supervised 학습 설정
   semi_supervised:
-    pseudo_label_start_epoch: 2  # 의사 레이블링 시작 에포크
+    pseudo_label_start_epoch: 10  # 의사 레이블링 시작 에포크
     pseudo_label_weight: 0.5      # 의사 레이블 손실 가중치
     conf_threshold: 0.5           # 의사 레이블 신뢰도 임계값
+    max_pseudo_labels: null       # 최대 의사 레이블 개수 (null: 제한 없음)
     
     # MC Dropout 설정
     uncertainty:
