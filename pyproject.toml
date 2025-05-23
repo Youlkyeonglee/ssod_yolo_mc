@@ -1,0 +1,34 @@
+[project]
+name = "ssod_research"
+version = "0.1.0"
+description = "Semi-Supervised Object Detection Research"
+authors = [
+    {name = "Lee", email = "lee@example.com"}
+]
+requires-python = ">=3.8"
+dependencies = [
+    "torch>=2.0.0",
+    "numpy>=1.21.0",
+    "opencv-python>=4.5.0",
+    "pyyaml>=5.4.0",
+    "albumentations>=1.3.0",
+    "pycocotools>=2.0.7",
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+ultralytics = "^8.1.2"
+torch = ">=2.0.0"
+torchvision = ">=0.15.0"
+opencv-python = "^4.8.0"
+numpy = "^1.24.0"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["configs/*.yaml"]

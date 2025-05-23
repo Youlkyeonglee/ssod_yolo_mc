@@ -1,0 +1,80 @@
+model:
+  version: "v8"  # v8, v9, v10, v11, v12
+  size: "m"      # n, s, m, l, x
+  task: "detect" # detect, segment, pose, classify
+  pretrained: true
+  name: "yolov8m"
+  dropout:
+    enabled: true
+    rate: 0.1
+    num_samples: 10
+
+inference:
+  conf_threshold: 0.25
+  device: null  # null for auto-detection, or specify 'cpu', 'cuda:0', etc.
+  save_dir: "results"
+
+data:
+  # 데이터셋 경로
+  root: "src/data/semi_supervised"  # 데이터 리스트 파일이 있는 디렉토리
+  
+  val:
+    root: "/media/lee/Data/COCO/val2017"
+    images: "${data.val.root}/images"
+    labels: "${data.val.root}/labels"
+  
+  # 데이터셋 구조
+  format: "yolo"  # 데이터셋 형식 (yolo, coco, voc 등)
+  
+  # 클래스 설정
+  nc: 80  # number of classes
+  names: ["person", "bicycle", "car"]  # 클래스 이름 리스트 (COCO 기본 클래스의 예시)
+  
+  # 이미지 설정
+  img_size: 640  # 입력 이미지 크기
+  batch_size: 16  # 배치 크기
+  num_workers: 4
+  augment: true  # 데이터 증강 사용 여부
+
+training:
+  # 학습 파라미터
+  epochs: 100
+  batch_size: ${data.batch_size}
+  img_size: ${data.img_size}
+  
+  # 옵티마이저 설정
+  optimizer:
+    name: "SGD"
+    lr: 0.01
+    momentum: 0.937
+    weight_decay: 0.0005
+  
+  # 학습 스케줄러
+  scheduler:
+    name: "cosine"
+    warmup_epochs: 3
+    warmup_momentum: 0.8
+    warmup_bias_lr: 0.1
+  
+  # 저장 설정
+  save_interval: 10  # n에포크마다 모델 저장
+  val_interval: 5    # n에포크마다 검증 수행
+  checkpoint_dir: "checkpoints"
+  
+  # Semi-supervised 학습 설정
+  semi_supervised:
+    pseudo_label_start_epoch: 2  # 의사 레이블링 시작 에포크
+    pseudo_label_weight: 0.5      # 의사 레이블 손실 가중치
+    conf_threshold: 0.5           # 의사 레이블 신뢰도 임계값
+    
+    # MC Dropout 설정
+    uncertainty:
+      box_std_threshold: 0.1     # 박스 좌표 불확실성 임계값
+      entropy_threshold: 0.5     # 클래스 예측 불확실성 임계값
+      min_detections: 3         # 유효한 의사 레이블로 간주하기 위한 최소 탐지 횟수
+
+evaluation:
+  # 평가 메트릭
+  metrics: ["mAP50", "mAP50-95"]
+  # 불확실성 평가
+  uncertainty_metrics: ["entropy", "variance"] 
