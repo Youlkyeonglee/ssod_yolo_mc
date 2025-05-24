@@ -107,3 +107,89 @@ runs/
 - NumPy
 - OpenCV
 - PyYAML
+
+# Semi-Supervised Object Detection with Uncertainty-aware Loss
+
+본 프로젝트는 Semi-Supervised Object Detection을 위한 Uncertainty-aware Loss를 구현합니다.
+
+## Loss Function
+
+전체 손실 함수는 supervised loss와 unsupervised loss의 가중치 합으로 구성됩니다:
+
+```
+Total Loss = Supervised Loss + λ × Unsupervised Loss
+```
+
+### 1. Supervised Loss (레이블된 데이터)
+
+기존 객체 검출기의 손실 함수를 그대로 사용합니다:
+
+- Classification Loss: Focal Loss
+  ```
+  FL(p_t) = -α_t(1-p_t)^γ log(p_t)
+  ```
+
+- Localization Loss: CIoU Loss
+  ```
+  L_box = 1 - IoU + ρ²(b,b^gt)/c² + αv
+  ```
+  - ρ: 박스 중심점 간의 유클리드 거리
+  - c: 두 박스를 포함하는 가장 작은 박스의 대각선 길이
+  - v: 종횡비 일관성 측정
+  - α: 양의 trade-off 파라미터
+
+- Objectness Loss: Binary Cross Entropy Loss
+  ```
+  L_obj = -[y log(p) + (1-y)log(1-p)]
+  ```
+
+```
+Supervised Loss = L_cls + L_box + L_obj
+```
+
+### 2. Unsupervised Loss (미레이블 데이터)
+
+MC Dropout을 통해 추정된 예측 불확실성(variance)을 반영한 가중치(weight)를 적용합니다:
+
+```
+Unsupervised Loss = w × (L_cls + L_box + L_obj)
+```
+
+여기서 가중치 w는 다음과 같이 계산됩니다:
+
+```
+w = exp(-α × σ²)
+```
+
+- α: 가중치 감소 정도를 조절하는 하이퍼파라미터 (기본값: 50)
+- σ²: MC Dropout 추론을 통해 얻어진 예측 결과의 분산(variance)
+
+#### 불확실성 가중치의 특성
+
+1. 예측이 확실할 때 (σ² → 0):
+   - w → 1
+   - 높은 신뢰도로 학습에 반영
+
+2. 예측이 불확실할 때 (σ² → ∞):
+   - w → 0
+   - 낮은 신뢰도로 학습에 반영
+
+## 구현 세부사항
+
+1. MC Dropout을 통한 불확실성 추정:
+   - Dropout rate: 0.1
+   - MC sampling 횟수: 10
+   - 예측 분산(σ²) 계산:
+     ```python
+     variance = torch.std(predictions, dim=0) ** 2
+     ```
+
+2. 의사 레이블 생성 조건:
+   - 신뢰도 임계값: 0.5
+   - 박스 좌표 불확실성 임계값: 0.1
+   - 클래스 엔트로피 임계값: 0.5
+
+3. 학습 파라미터:
+   - λ (pseudo_label_weight): 0.5
+   - α (uncertainty_weight): 50.0
+   - 의사 레이블링 시작 에포크: 10

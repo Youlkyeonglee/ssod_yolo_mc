@@ -109,7 +109,8 @@ def train_one_epoch(
     config: dict,
     pseudo_label_weight: float = 0.5,
     pseudo_label_start_epoch: int = 10,
-    conf_threshold: float = 0.5
+    conf_threshold: float = 0.5,
+    uncertainty_weight: float = 50.0
 ):
     """한 에포크 학습"""
     model.train()
@@ -164,9 +165,32 @@ def train_one_epoch(
             unlabeled_batch = next(iter(unlabeled_loader))
             unlabeled_images = unlabeled_batch['images'].to(device)
             
-            # 의사 레이블을 사용한 학습
+            # MC Dropout을 통한 불확실성 추정
+            features_list = []  # 각 feature map별로 예측 결과 저장
+            model.train()  # MC Dropout 활성화
             with torch.no_grad():
-                pseudo_predictions = model(unlabeled_images)
+                for _ in range(detector.num_samples):
+                    pred = model(unlabeled_images)
+                    if isinstance(pred, list):
+                        # 각 feature map별로 저장
+                        if not features_list:
+                            features_list = [[] for _ in range(len(pred))]
+                        for i, feat in enumerate(pred):
+                            features_list[i].append(feat)
+                    else:
+                        features_list.append(pred)
+            
+            # 각 feature map별로 평균과 분산 계산
+            mean_features = []
+            variance_features = []
+            for feature_samples in features_list:
+                # (num_samples, batch, anchors, grid_h, grid_w, channels)
+                feature_stack = torch.stack(feature_samples)
+                mean_features.append(torch.mean(feature_stack, dim=0))
+                variance_features.append(torch.std(feature_stack, dim=0) ** 2)
+            
+            # 전체 분산의 평균 계산
+            total_variance = torch.mean(torch.stack([v.mean() for v in variance_features]))
             
             # 의사 레이블을 YOLO 형식으로 변환
             pseudo_targets = []
@@ -174,19 +198,25 @@ def train_one_epoch(
                 if len(p['boxes']) > 0:
                     batch_labels = torch.zeros((len(p['boxes']), 6), device=device)
                     batch_labels[:, 0] = i  # batch index
-                    batch_labels[:, 1:] = torch.tensor(p['boxes'], device=device)  # [class_id, x_center, y_center, width, height]
+                    batch_labels[:, 1:] = torch.tensor(p['boxes'], device=device)
                     pseudo_targets.append(batch_labels)
             
             if pseudo_targets:
                 pseudo_targets = torch.cat(pseudo_targets, dim=0)
                 pseudo_loss, pseudo_loss_dict = compute_loss(
-                    pseudo_predictions,
+                    {'features': mean_features},  # 평균 예측 사용
                     pseudo_targets,
-                    model
+                    model,
+                    uncertainty=total_variance,  # 전체 예측의 평균 분산 사용
+                    alpha=uncertainty_weight
                 )
                 
                 # 전체 손실 계산
                 total_loss = labeled_loss + pseudo_label_weight * pseudo_loss
+                
+                # 로깅
+                loss_dict.update({f'pseudo_{k}': v for k, v in pseudo_loss_dict.items()})
+                loss_dict['uncertainty'] = total_variance.item()
             else:
                 total_loss = labeled_loss
         else:
@@ -198,8 +228,12 @@ def train_one_epoch(
         optimizer.step()
         
         # 현재 배치의 loss 값을 tqdm description에 업데이트
-        # pbar.set_description(f"Epoch {epoch} - Loss: {total_loss.item():.4f}")
-        pbar.set_description(f"Epoch {epoch}")
+        desc = f"Epoch {epoch}"
+        if loss_dict:
+            desc += f" - Loss: {total_loss.item():.4f}"
+            for k, v in loss_dict.items():
+                desc += f", {k}: {v:.4f}"
+        pbar.set_description(desc)
     
     return total_loss.item()
 
@@ -327,6 +361,11 @@ def main():
     with open(args.config) as f:
         config = yaml.safe_load(f)
     
+    # 설정값 정수형 변환 및 변수 참조 처리
+    if isinstance(config['training']['semi_supervised']['pseudo_label_start_epoch'], str):
+        if config['training']['semi_supervised']['pseudo_label_start_epoch'] == '${training.mature_epoch}':
+            config['training']['semi_supervised']['pseudo_label_start_epoch'] = config['training']['mature_epoch']
+    
     # 디바이스 설정
     if args.device is None:
         args.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -420,7 +459,8 @@ def main():
             config=config,
             pseudo_label_weight=config['training']['semi_supervised']['pseudo_label_weight'],
             pseudo_label_start_epoch=config['training']['semi_supervised']['pseudo_label_start_epoch'],
-            conf_threshold=config['training']['semi_supervised']['conf_threshold']
+            conf_threshold=config['training']['semi_supervised']['conf_threshold'],
+            uncertainty_weight=config['training']['uncertainty_weight']
         )
         
         # 학습률 업데이트
