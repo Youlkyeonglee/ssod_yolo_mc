@@ -1,0 +1,72 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# SSOD YOLO MC 프로젝트 구조 가이드
+
+본 프로젝트는 YOLOv5/v8/v9/v11/v12 기반 teacher-student Semi-Supervised Object Detection(SSOD) 연구를 위한 구조입니다.
+
+## 프로젝트 루트
+- [pyproject.toml](mdc:pyproject.toml): 프로젝트 의존성 및 설정 파일
+- [README.md](mdc:README.md): 프로젝트 개요 및 사용법
+- [uv.lock](mdc:uv.lock): UV 패키지 매니저 잠금 파일
+
+## 소스 코드 구조 (`src/`)
+
+### 설정 파일 (`src/configs/`)
+- [yolo_config.yaml](mdc:src/configs/yolo_config.yaml): YOLO 모델 및 학습 설정
+
+### 데이터 관리 (`src/data/`)
+- [semi_supervised_dataset.py](mdc:src/data/semi_supervised_dataset.py): Semi-supervised 데이터셋 클래스
+- **semi_supervised/**: COCO 데이터셋의 labeled/unlabeled 분할 파일들
+  - 패턴: `COCO_train2017_p{percentage}_s{seed}_{labeled|unlabeled}_data.txt`
+  - 지원 비율: 1.0%, 2.0%, 5.0%, 10.0%
+- **supervised/**: COCO validation 데이터 파일들
+
+### 모델 구현 (`src/models/`)
+- [yolo_mc.py](mdc:src/models/yolo_mc.py): MC Dropout 기반 YOLO teacher-student 모델
+- [feature_alignment.py](mdc:src/models/feature_alignment.py): Feature alignment 모듈
+
+### 불확실성 추정 (`src/uncertainty/`)
+- [mc_dropout.py](mdc:src/uncertainty/mc_dropout.py): Monte Carlo Dropout 구현
+  - **MCDropoutDetector**: 불확실성 추정 및 pseudo label 신뢰도 평가
+  - **핵심 기능**: 예측 분산 계산, 신뢰도 기반 필터링
+  - **평가 지표**: Box variance, Class entropy, 캘리브레이션
+
+### 유틸리티 (`src/utils/`)
+- [train_utils.py](mdc:src/utils/train_utils.py): 학습 관련 유틸리티 함수
+- [visualization.py](mdc:src/utils/visualization.py): 시각화 도구
+  - 불확실성 분포 히스토그램
+  - 신뢰도-정확도 캘리브레이션 곡선
+
+### 핵심 파일
+- [train.py](mdc:src/train.py): 메인 학습 스크립트
+- [yolo_utils.py](mdc:src/yolo_utils.py): YOLO 관련 유틸리티
+
+## 실험 결과 (`runs/`)
+학습 결과, 로그, 체크포인트가 저장되는 디렉토리
+- **불확실성 분석 결과**: 예측 분산 분포, 엔트로피 히스토그램
+- **MC Dropout 효과 검증**: Baseline vs Proposed 비교 결과
+
+## 주요 워크플로우
+
+### 1. MC Dropout 기반 불확실성 추정 워크플로우
+1. **Teacher 모델 초기화**: `src/models/yolo_mc.py`에서 고정된 teacher 모델 설정
+2. **MC Dropout 적용**: `src/uncertainty/mc_dropout.py`에서 N회 반복 추론
+3. **불확실성 계산**: 예측 분산 및 클래스 엔트로피 측정
+4. **신뢰도 필터링**: threshold 기반 고품질 pseudo label 선별
+5. **성능 평가**: Baseline 대비 정량적 개선 효과 측정
+
+### 2. 기존 워크플로우
+2. **데이터 준비**: `src/data/semi_supervised_dataset.py`에서 labeled/unlabeled 데이터 로드
+3. **모델 초기화**: `src/models/yolo_mc.py`에서 teacher-student 모델 생성
+4. **학습 실행**: `src/train.py`에서 메인 학습 루프 실행
+5. **Feature Alignment**: `src/models/feature_alignment.py`로 teacher-student feature 정합
+
+## 개발 시 참고사항
+- **MC Dropout 실험**: `src/uncertainty/mc_dropout.py` 수정으로 샘플링 횟수, threshold 조정
+- 새로운 YOLO 버전 추가 시: `src/models/yolo_mc.py` 수정
+- 데이터셋 변경 시: `src/data/semi_supervised_dataset.py` 및 `src/configs/yolo_config.yaml` 수정
+- 새로운 불확실성 추정 방법 추가 시: `src/uncertainty/` 디렉토리에 새 모듈 생성
+- 실험 설정 변경 시: `src/configs/yolo_config.yaml` 수정

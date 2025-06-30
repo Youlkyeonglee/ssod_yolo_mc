@@ -8,46 +8,114 @@ model:
     enabled: true
     rate: 0.1
     num_samples: 10
+  feature_alignment:
+    enabled: true
+    weight: 0.1
+  # Teacher-Student EMA 설정
+  ema:
+    enabled: true
+    decay: 0.999  # EMA decay rate (0.999 권장, 0.99-0.9999 범위)
 
 inference:
   conf_threshold: 0.25
   device: null  # null for auto-detection, or specify 'cpu', 'cuda:0', etc.
   
-
 data:
   # 데이터셋 경로
-  root: "src/data/semi_supervised"  # 데이터 리스트 파일이 있는 디렉토리
+  root: "/home/lee/research/Research2025/ssod_yolo_mc/src/data/semi_supervised"  # 데이터 리스트 파일이 있는 디렉토리
   
   val:
     root: "/media/lee/Data/COCO/val2017"
-    images: "${data.val.root}/images"
-    labels: "${data.val.root}/labels"
+    images: "/media/lee/Data/COCO/val2017/images"
+    labels: "/media/lee/Data/COCO/val2017/labels"
   
   # 데이터셋 구조
   format: "yolo"  # 데이터셋 형식 (yolo, coco, voc 등)
   
   # 클래스 설정
-  nc: 80  # number of classes
-  names: ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]  # COCO 데이터셋의 80개 클래스
-  
+  nc: 91  # number of classes
+  names: ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", 
+          "fire hydrant", "street sign", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", 
+          "cow", "elephant", "bear", "zebra", "giraffe", "hat", "backpack", "umbrella", "shoe", "eye glasses", "handbag", 
+          "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", 
+          "surfboard", "tennis racket", "bottle", "plate", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", 
+          "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "mirror",
+          "dining table", "window", "desk", "toilet", "door", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", 
+          "toaster", "sink", "refrigerator", "blender","book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush", "hair brush", "toothpaste"]  # COCO 데이터셋의 80개 클래스
+  # names: ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", 
+  #         "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", 
+  #         "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", 
+  #         "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", 
+  #         "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", 
+  #         "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", 
+  #         "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", 
+  #         "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
   # 이미지 설정
   img_size: 640  # 입력 이미지 크기
-  batch_size: 64  # 배치 크기
-  num_workers: 4
+  batch_size: 8  # 배치 크기
+  num_workers: 0  # DataLoader 멀티프로세싱 비활성화 (에러 방지)
   augment: true  # 데이터 증강 사용 여부
+  max_samples: null  # 연구용: 적당한 규모 (빠른 실험을 위해 1000개, null은 전체 데이터 사용)
+  labeled_ratio: 10.0  # 레이블된 데이터 비율 (1, 2, 5, 10)
+  seed: 1 # 데이터 분포 시드 (1,2,3,4,5)
+  
+  # Teacher-Student Augmentation 전략
+  augmentation:
+    weak:  # Teacher model (안정적 pseudo label 생성)
+      horizontal_flip: 0.5
+      color_jitter:
+        brightness: 0.2
+        contrast: 0.2
+        saturation: 0.1
+        hue: 0.05
+    strong:  # Student model (robust 특징 학습)
+      horizontal_flip: 0.5
+      color_jitter:
+        brightness: 0.4
+        contrast: 0.4
+        saturation: 0.3
+        hue: 0.1
+      rotation: 15
+      affine:
+        translate: [0.1, 0.1]
+        scale: [0.9, 1.1]
+      perspective: 0.2
+      cutout:
+        n_holes: 1
+        length: 32
 
 training:
   # 학습 파라미터
-  epochs: 300
-  mature_epoch: 220
-  batch_size: ${data.batch_size}
-  img_size: ${data.img_size}
-  uncertainty_weight: 50.0  # 불확실성 가중치 하이퍼파라미터
+  epochs: 20  # 연구용: COCO에서 일반적으로 충분한 에포크 수
+  mature_epoch: 5  # pseudo label 시작: 초기 supervised 학습 후 semi-supervised 전환
+  batch_size: 8
+  img_size: 640
+  learning_rate: 0.001
+  weight_decay: 0.0005
+  momentum: 0.937
+  warmup_epochs: 3
+  warmup_momentum: 0.8
+  warmup_bias_lr: 0.1
+  uncertainty_weight: 5.0  # 불확실성 가중치 (50.0→5.0: 10배 감소로 안정화)
+  
+  # MC Loss 설정 (새로운 불확실성 기반 손실 함수)
+  mc_loss:
+    alpha: 1.0              # Epistemic uncertainty weight
+    beta: 0.5               # Predictive variance weight
+    gamma: 0.3              # Entropy regularization weight  
+    temperature: 1.0        # Temperature scaling for uncertainty
+    adaptive_weighting: true # 학습 진행에 따른 적응적 가중치 조정
+  
+  # Loss 가중치 설정
+  loss_weights:
+    box_loss_gain: 0.15     # bbox regression loss (사용자 요구사항: bbox 중시)
+    cls_loss_gain: 0.3      # classification loss
+    obj_loss_gain: 0.5      # objectness loss
   
   # 옵티마이저 설정
   optimizer:
     name: "SGD"
-    lr: 0.01
+    lr: 0.001
     momentum: 0.937
     weight_decay: 0.0005
   
@@ -59,13 +127,14 @@ training:
     warmup_bias_lr: 0.1
   
   # 저장 설정
-  save_interval: 50  # n에포크마다 모델 저장
-  val_interval: 50    # n에포크마다 검증 수행
+  save_interval: 5  # 매 에포크마다 저장 및 평가 (테스트용)
+  val_interval: 5      # 매 에포크마다 검증 (테스트용)
   checkpoint_dir: "checkpoints"
   
   # Semi-supervised 학습 설정
   semi_supervised:
-    pseudo_label_start_epoch: ${training.mature_epoch}  # 의사 레이블링 시작 에포크
+    enabled: true
+    pseudo_label_start_epoch: 5  # 의사 레이블링 시작 에포크
     pseudo_label_weight: 0.5      # 의사 레이블 손실 가중치
     conf_threshold: 0.5           # 의사 레이블 신뢰도 임계값
     max_pseudo_labels: 2000       # 최대 의사 레이블 개수 (null: 제한 없음)
@@ -74,6 +143,29 @@ training:
       box_std_threshold: 0.1     # 박스 좌표 불확실성 임계값
       entropy_threshold: 0.5     # 클래스 예측 불확실성 임계값
       min_detections: 3         # 유효한 의사 레이블로 간주하기 위한 최소 탐지 횟수
+    uncertainty_weight: 5.0           # pseudo label loss 가중치 (50.0에서 조정)
+    uncertainty_alpha: 5.0            # 불확실성 기반 가중치 조정 (10.0에서 조정)
+    consistency_weight: 0.1           # MC consistency loss 가중치
+    num_mc_samples: 10                # MC Dropout 샘플링 횟수
+    
+    # 불확실성 필터링 임계값
+    uncertainty:
+      box_std_threshold: 0.1          # bbox 표준편차 임계값
+      entropy_threshold: 0.5          # 클래스 엔트로피 임계값
+      confidence_threshold: 0.7       # 신뢰도 임계값
+  
+  # Feature Alignment 설정
+  feature_alignment:
+    weight: 0.1             # feature alignment loss 가중치
+    levels: ['P3', 'P4', 'P5']  # alignment할 feature levels
+  
+  # EMA (Exponential Moving Average) 설정
+  ema:
+    decay: 0.999            # teacher 모델 EMA decay rate
+    
+  # Gradient clipping
+  grad_clip:
+    max_norm: 10.0          # gradient clipping threshold
 
 evaluation:
   # 평가 메트릭

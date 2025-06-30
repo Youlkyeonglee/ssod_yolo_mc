@@ -1,0 +1,39 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 기술 스택
+
+본 SSOD 연구 프로젝트의 주요 기술 스택은 다음과 같습니다.
+
+## 언어
+- Python 3.11
+
+## 주요 라이브러리 및 프레임워크
+- PyTorch (딥러닝 프레임워크)
+- Ultralytics (YOLO 구현체)
+- torchvision (데이터셋, 변환 등)
+- numpy, pandas (데이터 처리)
+- matplotlib, seaborn (시각화)
+- tqdm (진행률 표시)
+- scipy (불확실성 계산, 통계 분석)
+- sklearn (평가 메트릭, 캘리브레이션)
+- 기타 실험 관리 및 분산 학습 관련 라이브러리 (예: wandb, torch.distributed 등)
+
+## MC Dropout 특화 도구
+- torch.nn.functional.dropout (MC 샘플링)
+- torch.std, torch.var (예측 분산 계산)
+- scipy.stats (캘리브레이션 메트릭)
+- sklearn.calibration (신뢰도 평가)
+
+## 불확실성 평가 라이브러리
+- matplotlib (분산 분포 히스토그램)
+- seaborn (캘리브레이션 곡선 시각화)
+- numpy (엔트로피 계산)
+
+## 하드웨어/환경
+- Linux 환경 권장
+- 단일/다중 GPU (NVIDIA CUDA 지원)
+
+> 실험 및 구현 시 위 기술 스택을 기반으로 환경을 구성할 것

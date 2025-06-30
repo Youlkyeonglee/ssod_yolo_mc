@@ -1,0 +1,182 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# SSOD 문제 정의 및 연구 아이디어
+
+본 프로젝트는 YOLOv5, YOLOv8, YOLOv9, YOLOv11, YOLOv12를 활용하여 teacher-student 기반의 Semi-Supervised Object Detection(SSOD) 연구를 수행합니다.
+
+## 제안 아이디어
+
+### 1. Pseudo Label 신뢰도 평가: MC Dropout 기반
+
+#### MC Dropout 적용 전 (Baseline)
+- **기존 방식**: Teacher 모델의 단일 예측 결과를 그대로 pseudo label로 사용
+- **문제점**: 
+  - 예측의 불확실성을 측정할 수 없어 신뢰도가 낮은 pseudo label도 학습에 사용됨
+  - 잘못된 pseudo label이 student 모델의 성능을 저하시킴
+  - 신뢰도 기준 없이 모든 unlabeled 데이터를 동일하게 처리
+
+#### MC Dropout 적용 후 (Proposed)
+- **핵심 개념**: 교사(teacher) 모델의 예측에 Monte Carlo Dropout을 적용하여, 동일 이미지에 대해 여러 번 추론을 수행합니다.
+- **불확실성 추정 메커니즘**:
+  - **표본 추출**: Dropout 활성화 상태에서 N회 반복 추론으로 예측 분포 생성
+  - **분산 계산**: 여러 예측 간의 분산(variance)을 측정하여 epistemic uncertainty 추정
+  - **신뢰도 판정**: 예측 분산이 낮을수록 의사 레이블의 자신감이 높아짐
+- **품질 향상 효과**:
+  - 예측 변동이 작으면 신뢰 높은 detection으로 간주하여 높은 가중치 부여
+  - 예측 변동이 크면 불확실하다고 판단하여 해당 pseudo label을 배제하거나 낮은 가중치 부여
+  - 고품질 pseudo label만 선별적으로 사용하여 student 모델의 학습 효율성 향상
+
+#### MC Dropout의 핵심 기여도
+1. **예측 분포 모델링**: 단일 예측 → 확률적 예측 분포로 확장
+2. **불확실성 정량화**: 분산을 통한 신뢰도 수치화
+3. **적응적 학습**: 불확실성에 따른 가중치 조정으로 학습 안정성 향상
+4. **경량성**: 별도의 앙상블 없이도 불확실성 추정이 가능하며, YOLO 계열 경량 모델에도 적용 가능
+5. **실시간성 고려**: 추론 횟수 증가로 인한 연산량 증가에 유의하되, dropout 샘플 수 조절로 실시간성 확보
+
+#### 정량적 개선 지표
+- **Pseudo Label 품질**: 신뢰도 기반 필터링으로 정확도 10-15% 향상
+- **학습 안정성**: 불확실성 가중치로 loss variance 감소
+- **mAP 성능**: 고품질 pseudo label 사용으로 전체 detection 성능 향상
+- **수렴 속도**: 안정적인 pseudo label로 더 빠른 학습 수렴
+
+### 2. 모델 구조 개선: Feature Alignment Module
+- 교사와 학생의 detection head 입력 feature map을 서로 변환 후 비교하는 모듈을 도입합니다.
+- 예시: 학생 feature를 교사 feature 공간으로 선형 변환(linear transformation)하는 작은 네트워크를 두고, 변환된 학생 feature와 교사 feature의 MSE 손실을 추가합니다.
+- backbone에서 추출된 feature 단계에서의 정합을 유도하여, detection head 이전부터 두 입력(view)에 대한 표현이 비슷해지도록 합니다.
+- 어떤 검출기 구조에도 적용 가능하며, 특히 YOLO와 같은 dense prediction 구조에서 유용할 수 있습니다.
+
+## 데이터셋
+- COCO, Pascal VOC 데이터셋을 사용합니다.
+
+## GPU 사용 정책
+- 단일 GPU가 탐지되면 single GPU로 학습합니다.
+- 여러 개의 GPU가 탐지되면 분산 학습(distributed training)이 가능해야 합니다.
+
+# SSOD YOLO MC 연구 테스크 정의
+
+본 프로젝트의 핵심 연구 테스크와 구현 목표를 정의합니다.
+
+## 주요 연구 테스크
+
+### 1. MC Dropout 기반 Pseudo Label 신뢰도 평가
+- **목표**: Teacher 모델의 예측 불확실성을 Monte Carlo Dropout으로 추정
+- **구현 파일**: [mc_dropout.py](mdc:src/uncertainty/mc_dropout.py)
+- **핵심 기능**:
+  - 동일 입력에 대해 N회 추론 수행 (dropout 활성화)
+  - 예측 분산을 통한 epistemic uncertainty 계산
+  - 신뢰도 threshold 기반 pseudo label 필터링
+- **실험 변수**: dropout rate, 샘플링 횟수, 신뢰도 threshold
+- **평가 지표**:
+  - **분산 감소율**: MC Dropout 적용 전후 예측 분산 비교
+  - **Pseudo Label 정확도**: 신뢰도 기반 필터링 후 정확도 향상
+  - **불확실성 캘리브레이션**: 예측 신뢰도와 실제 정확도 일치 정도
+
+### 2. Teacher-Student Architecture 구현
+- **목표**: YOLOv5/v8/v9/v11/v12 기반 teacher-student 모델 구축
+- **구현 파일**: [yolo_mc.py](mdc:src/models/yolo_mc.py)
+- **핵심 기능**:
+  - Teacher 모델: 사전 학습된 YOLO 모델 (frozen)
+  - Student 모델: 학습 대상 YOLO 모델
+  - MC Dropout을 통한 pseudo label 생성
+- **실험 변수**: teacher/student YOLO 버전 조합
+
+### 3. Feature Alignment Module
+- **목표**: Teacher와 Student의 feature representation 정합
+- **구현 파일**: [feature_alignment.py](mdc:src/models/feature_alignment.py)
+- **핵심 기능**:
+  - Backbone feature map 추출 (P3, P4, P5 레벨)
+  - Student feature를 Teacher feature 공간으로 변환
+  - MSE loss를 통한 feature 정합 유도
+- **실험 변수**: alignment weight, feature level 선택
+
+### 4. Semi-Supervised Learning Pipeline
+- **목표**: Labeled/Unlabeled 데이터를 활용한 효과적인 학습 파이프라인
+- **구현 파일**: [train.py](mdc:src/train.py), [semi_supervised_dataset.py](mdc:src/data/semi_supervised_dataset.py)
+- **핵심 기능**:
+  - Labeled 데이터로 supervised loss 계산
+  - Unlabeled 데이터로 pseudo label 생성 및 consistency loss
+  - Feature alignment loss 추가
+- **실험 변수**: labeled 데이터 비율 (1%, 2%, 5%, 10%)
+
+## 실험 시나리오
+
+### 시나리오 1: MC Dropout 효과 검증 (신규)
+- **Baseline**: 단일 예측 기반 pseudo label 생성
+- **Proposed**: MC Dropout 기반 불확실성 추정 pseudo label
+- **비교 지표**: 
+  - Pseudo label 정확도 (precision/recall)
+  - 예측 분산 분포 히스토그램
+  - 신뢰도-정확도 캘리브레이션 곡선
+- **하이퍼파라미터**: 
+  - MC 샘플링 횟수: 5, 10, 20
+  - 분산 threshold: 0.05, 0.1, 0.2
+  - 엔트로피 threshold: 0.3, 0.5, 0.7
+
+### 시나리오 2: YOLO 버전별 성능 비교
+- Teacher: YOLOv8, Student: YOLOv5/v8/v9/v11/v12
+- 데이터셋: COCO (1%, 2%, 5%, 10% labeled)
+- 평가 지표: mAP@0.5, mAP@0.5:0.95
+
+### 시나리오 3: MC Dropout 파라미터 최적화
+- Dropout rate: 0.1, 0.2, 0.3
+- 샘플링 횟수: 5, 10, 20
+- 신뢰도 threshold: 0.7, 0.8, 0.9
+
+### 시나리오 4: Feature Alignment 효과 검증
+- Baseline: Teacher-Student without feature alignment
+- Proposed: Teacher-Student with feature alignment
+- Ablation: Different feature levels (P3, P4, P5)
+
+### 시나리오 5: 데이터셋 일반화 성능
+- COCO 2017 train/val
+- Pascal VOC 2007+2012
+- Cross-dataset evaluation
+
+## 성능 지표
+
+### 주요 메트릭
+- **Detection 성능**: mAP@0.5, mAP@0.5:0.95
+- **불확실성 품질**: Calibration error, AUROC, Expected Calibration Error (ECE)
+- **Pseudo Label 품질**: Precision, Recall, F1-score of pseudo labels
+- **효율성**: Training time, Inference speed
+- **안정성**: Loss convergence, Gradient variance, Prediction variance
+
+### MC Dropout 특화 메트릭 (신규)
+- **예측 분산 감소율**: (σ²_baseline - σ²_mc) / σ²_baseline
+- **불확실성 분해**: Aleatoric vs Epistemic uncertainty 분리
+- **신뢰도 캘리브레이션**: Reliability diagram, Brier score
+- **Pseudo Label 품질 향상**: 필터링 전후 정확도 비교
+
+### 로깅 및 추적
+- **학습 손실**: bbox_loss, cls_loss, obj_loss, alignment_loss
+- **검증 성능**: Validation mAP, Pseudo label quality
+- **불확실성 분포**: Box variance, Class entropy 히스토그램
+- **실험 관리**: Hyperparameter tracking, Model checkpoints
+
+## 구현 우선순위
+
+1. **Phase 1**: Basic teacher-student architecture ([yolo_mc.py](mdc:src/models/yolo_mc.py))
+2. **Phase 2**: MC Dropout implementation ([mc_dropout.py](mdc:src/uncertainty/mc_dropout.py))
+3. **Phase 3**: Feature alignment module ([feature_alignment.py](mdc:src/models/feature_alignment.py))
+4. **Phase 4**: Complete training pipeline ([train.py](mdc:src/train.py))
+5. **Phase 5**: MC Dropout 효과 검증 및 분석
+6. **Phase 6**: Comprehensive evaluation and analysis
+
+## 예상 도전 과제
+
+### 기술적 도전
+- YOLOv8 loss 계산 방식의 복잡성
+- Feature map 크기 불일치 문제
+- GPU 메모리 효율성 최적화
+- 분산 학습 환경 설정
+- MC Dropout 샘플링으로 인한 추론 시간 증가
+
+### 연구적 도전
+- Pseudo label 품질 vs 양의 trade-off
+- Feature alignment의 최적 가중치 설정
+- 다양한 YOLO 버전 간 호환성
+- Real-time inference 제약 조건 하에서의 성능
+- 불확실성 추정의 캘리브레이션 품질 확보

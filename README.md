@@ -176,12 +176,64 @@ w = exp(-α × σ²)
 
 ## 구현 세부사항
 
+### YOLO 손실 함수 구현
+
+새로운 `yolo_losses.py` 모듈에서 다음 손실 함수들을 구현:
+
+1. **Bounding Box Loss**:
+   - **GIoU Loss**: Generalized Intersection over Union
+   - **CIoU Loss**: Complete Intersection over Union (기본값)
+   ```python
+   # CIoU 계산 공식
+   ciou = iou - (rho2 / c2 + v * alpha)
+   loss = 1 - ciou
+   ```
+
+2. **Classification Loss**:
+   - **Cross Entropy Loss**: 표준 분류 손실
+   - **Focal Loss**: 클래스 불균형 해결 (γ > 0일 때)
+   ```python
+   focal_loss = (1 - pt)^γ * ce_loss
+   ```
+
+3. **Objectness Loss**:
+   - **Binary Cross Entropy**: 객체 존재 여부 분류
+   ```python
+   obj_loss = F.binary_cross_entropy_with_logits(pred_obj, obj_targets)
+   ```
+
+### 손실 함수 설정
+
+`yolo_config.yaml`에서 손실 함수 파라미터 설정:
+
+```yaml
+training:
+  loss:
+    supervised:
+      box_loss_gain: 7.5      # Bbox loss weight
+      cls_loss_gain: 0.5      # Classification loss weight  
+      obj_loss_gain: 1.0      # Objectness loss weight
+      bbox_loss_type: "ciou"  # "giou" or "ciou"
+      focal_loss_gamma: 0.0   # 0.0 = standard CE, >0 = focal loss
+      
+    semi_supervised:
+      box_loss_gain: 7.5
+      cls_loss_gain: 0.5  
+      obj_loss_gain: 1.0
+      bbox_loss_type: "ciou"
+      focal_loss_gamma: 0.0
+      uncertainty_alpha: 50.0 # w = exp(-α × σ²)
+```
+
+### MC Dropout 및 불확실성 추정
+
 1. MC Dropout을 통한 불확실성 추정:
    - Dropout rate: 0.1
    - MC sampling 횟수: 10
    - 예측 분산(σ²) 계산:
      ```python
-     variance = torch.std(predictions, dim=0) ** 2
+     mc_predictions = [model(x) for _ in range(num_samples)]
+     variance = torch.var(torch.stack(mc_predictions), dim=0)
      ```
 
 2. 의사 레이블 생성 조건:
@@ -193,3 +245,34 @@ w = exp(-α × σ²)
    - λ (pseudo_label_weight): 0.5
    - α (uncertainty_weight): 50.0
    - 의사 레이블링 시작 에포크: 10
+
+### 사용 방법
+
+```python
+from src.utils.yolo_losses import create_yolo_loss
+
+# Supervised learning용 손실 함수
+loss_fn = create_yolo_loss(
+    loss_type='supervised',
+    bbox_loss_type='ciou',
+    box_gain=7.5,
+    cls_gain=0.5,
+    obj_gain=1.0
+)
+
+# Semi-supervised learning용 손실 함수
+semi_loss_fn = create_yolo_loss(
+    loss_type='semi_supervised',
+    bbox_loss_type='ciou', 
+    uncertainty_alpha=50.0
+)
+
+# 손실 계산
+box_loss, cls_loss, obj_loss = loss_fn(predictions, targets)
+```
+
+
+Phase 1 (현재): Conservative 설정으로 baseline 성능 확보
+Phase 2: Focal Loss 도입 실험 (focal_loss_gamma: 1.5, 2.0)
+Phase 3: Label Smoothing 실험 (label_smoothing: 0.1)
+Phase 4: bbox_loss_gain 조정 실험 (5.0, 10.0, 15.0)

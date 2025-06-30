@@ -1,0 +1,25 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# SSOD 연구 PRD (Product Requirements Document)
+
+본 프로젝트는 YOLOv5/v8/v9/v11/v12 기반 teacher-student 구조의 Semi-Supervised Object Detection(SSOD) 연구를 목표로 합니다.
+
+## 주요 요구사항
+
+- **Pseudo Label 신뢰도 평가**: MC Dropout을 활용해 교사 모델 예측의 불확실성을 추정, 신뢰도 높은 detection만 학생 학습에 사용
+  - **핵심 기여**: 예측 분산이 낮을수록 의사 레이블의 자신감 향상
+  - **정량적 목표**: 신뢰도 기반 필터링으로 pseudo label 정확도 10-15% 향상
+- **Feature Alignment Module**: 학생 feature를 교사 feature 공간으로 변환 후 MSE 손실로 정합 유도, backbone 단계에서 표현 일치 강화
+- **데이터셋**: COCO, Pascal VOC
+- **GPU 정책**: 단일 GPU 시 single, 다수 GPU 시 분산 학습 지원
+
+## 사용자 관점 주요 포인트
+- 실험 및 확장 용이성: 다양한 YOLO 버전과 모듈 적용이 쉽도록 구조화
+- 실시간성 고려: Dropout 샘플 수 조절로 연산량 관리
+- 코드/실험 재현성: 설정, 실험 결과, 모델 구조 변경 이력 관리 권장
+- MC Dropout 효과 검증: Baseline 대비 불확실성 품질 및 성능 향상 측정
+
+> 자세한 연구 아이디어 및 세부 구현은 @ssod-problem-definition.mdc 참고

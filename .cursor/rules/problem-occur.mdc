@@ -1,0 +1,147 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# SSOD YOLO MC 프로젝트 주요 문제 및 해결 방안
+
+본 문서는 YOLOv5/v8/v9/v11/v12 기반 teacher-student Semi-Supervised Object Detection(SSOD) 연구 프로젝트에서 발생한 주요 문제들과 해결 방안을 정리합니다.
+
+## 1. 데이터 시각화 관련 문제
+
+### 1.1 이미지 크기 불일치 문제
+**증상**: `RuntimeError: stack expects each tensor to be equal size`
+**원인**: 원본 이미지들의 크기가 서로 달라서 `torch.stack()` 실행 시 오류 발생
+**해결**: [train.py](mdc:src/train.py)에서 이미지 크기를 640x640으로 통일하고 aspect ratio 유지하면서 패딩 처리
+
+```python
+# 해결 코드 예시 (train.py L520-L550)
+target_size = 640  # 표준 YOLO 입력 크기
+scale = min(target_size/w, target_size/h)
+img_padded = cv2.copyMakeBorder(
+    img_resized, pad_top, pad_bottom, pad_left, pad_right,
+    cv2.BORDER_CONSTANT, value=(114, 114, 114)  # YOLO 표준 패딩 색상
+)
+```
+
+### 1.2 데이터 타입 변환 오류
+**증상**: `TypeError: only length-1 arrays can be converted to Python scalars`
+**원인**: `class_id`, `conf` 값이 배열/텐서 형태로 전달되어 스칼라 변환 시 오류
+**해결**: [visualization.py](mdc:src/utils/visualization.py)에서 안전한 타입 변환 로직 구현
+
+```python
+# 해결 코드 예시 (visualization.py L69-L75, L114-L125)
+# 안전한 변환 함수
+if hasattr(value, '__len__') and len(value) > 0:
+    value = value[0]  # 배열인 경우 첫 번째 값
+elif hasattr(value, 'item'):  # PyTorch tensor
+    value = value.item()
+value = int(value)  # 또는 float(value)
+```
+
+**증상**: `ValueError: The truth value of an array with more than one element is ambiguous`
+**원인**: `conf > 0.3` 비교에서 `conf`가 배열이어서 boolean 비교 불가
+**해결**: confidence 값도 스칼라로 변환 후 비교
+
+## 2. 좌표 시스템 문제
+
+### 2.1 레이블 좌표 형식 불일치
+**증상**: 박스가 이미지 경계를 벗어나거나 음수 좌표 발생
+**원인**: YOLO center 형식과 top-left 형식 혼용
+**해결**: [semi_supervised_dataset.py](mdc:src/data/semi_supervised_dataset.py)에서 좌표 형식을 top-left로 통일
+
+```python
+# 올바른 좌표 변환 (top-left 형식)
+x1 = x_top_left * img_w
+y1 = y_top_left * img_h
+x2 = x1 + (width * img_w)
+y2 = y1 + (height * img_h)
+
+# 잘못된 변환 (YOLO center 형식)
+x1 = (x_center - width/2) * img_w  # 음수 발생 가능
+```
+
+## 3. 폴더 구조 문제
+
+### 3.1 YOLO 표준 폴더 구조 불일치
+**증상**: 결과가 `train/` 폴더에 직접 저장됨
+**해결**: [train.py](mdc:src/train.py)에서 `runs/train/`, `runs/val/` 구조로 변경
+
+```python
+# 표준 YOLO 구조
+runs_dir = Path(save_dir) / "runs"
+base_dir = runs_dir / "train"  # 학습 결과
+val_dir = runs_dir / "val"     # validation 결과
+detect_dir = runs_dir / "detect"  # detection 결과 (향후)
+```
+
+## 4. 일반적인 문제 해결 패턴
+
+### 4.1 안전한 텐서/배열 처리
+```python
+def safe_scalar_conversion(value, target_type=float):
+    """배열/텐서를 안전하게 스칼라로 변환"""
+    if hasattr(value, '__len__') and len(value) > 0:
+        value = value[0]
+    elif hasattr(value, 'item'):
+        value = value.item()
+    return target_type(value)
+```
+
+### 4.2 이미지 크기 통일 처리
+```python
+def resize_with_padding(img, target_size=640):
+    """aspect ratio 유지하면서 패딩으로 크기 통일"""
+    h, w = img.shape[:2]
+    scale = min(target_size/w, target_size/h)
+    new_w, new_h = int(w*scale), int(h*scale)
+    
+    img_resized = cv2.resize(img, (new_w, new_h))
+    
+    # 패딩 계산 및 적용
+    pad_w = target_size - new_w
+    pad_h = target_size - new_h
+    pad_top, pad_left = pad_h // 2, pad_w // 2
+    pad_bottom, pad_right = pad_h - pad_top, pad_w - pad_left
+    
+    return cv2.copyMakeBorder(
+        img_resized, pad_top, pad_bottom, pad_left, pad_right,
+        cv2.BORDER_CONSTANT, value=(114, 114, 114)
+    )
+```
+
+### 4.3 좌표 변환 안전장치
+```python
+def validate_bbox_coordinates(x1, y1, x2, y2, img_w, img_h):
+    """bbox 좌표 유효성 검증 및 클램핑"""
+    x1 = max(0, min(x1, img_w - 1))
+    y1 = max(0, min(y1, img_h - 1))
+    x2 = max(x1 + 1, min(x2, img_w))
+    y2 = max(y1 + 1, min(y2, img_h))
+    return x1, y1, x2, y2
+```
+
+## 5. 디버깅 팁
+
+### 5.1 데이터 타입 확인
+```python
+print(f"Type: {type(value)}, Shape: {getattr(value, 'shape', 'N/A')}")
+print(f"Has len: {hasattr(value, '__len__')}, Has item: {hasattr(value, 'item')}")
+```
+
+### 5.2 좌표 범위 확인
+```python
+print(f"Coords: ({x1:.1f}, {y1:.1f}) - ({x2:.1f}, {y2:.1f})")
+print(f"Image size: {img_w}x{img_h}")
+print(f"Valid: {0 <= x1 < x2 <= img_w and 0 <= y1 < y2 <= img_h}")
+```
+
+## 6. 예방 수칙
+
+1. **타입 안전성**: 모든 수치 연산 전에 타입 확인 및 변환
+2. **좌표 검증**: bbox 좌표는 항상 이미지 경계 내 유지
+3. **크기 통일**: 배치 처리 전 모든 텐서 크기 통일
+4. **표준 준수**: YOLO 표준 폴더 구조 및 데이터 형식 준수
+5. **예외 처리**: 모든 외부 데이터 로딩 시 예외 처리 구현
+
+> 이 문제들을 해결함으로써 MC Dropout 기반 불확실성 추정 연구에 집중할 수 있는 안정적인 기반을 구축했습니다.

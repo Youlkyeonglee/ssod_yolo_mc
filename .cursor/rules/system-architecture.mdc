@@ -1,0 +1,77 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 전체 시스템 아키텍처
+
+본 프로젝트의 전체 시스템 아키텍처는 데이터 준비, MC Dropout 기반 학습 파이프라인, 인프라로 구성됩니다.
+
+```mermaid
+flowchart TD
+    subgraph 데이터 준비
+        A["COCO/Pascal VOC 데이터셋"]
+    end
+    subgraph "MC Dropout 기반 학습 파이프라인"
+        B["Teacher YOLO (v5/v8/v9/v11/v12)"]
+        C["MC Dropout 불확실성 추정"]
+        D["신뢰도 기반 Pseudo Label 필터링"]
+        E["Student YOLO (v5/v8/v9/v11/v12)"]
+        F["Feature Alignment Module"]
+        G["통합 Loss 계산 (Labeled + Pseudo + Alignment)"]
+        H["성능 평가 (mAP + 불확실성 품질)"]
+    end
+    subgraph "불확실성 평가 시스템"
+        I["예측 분산 계산"]
+        J["클래스 엔트로피 측정"]
+        K["신뢰도 캘리브레이션"]
+        L["Pseudo Label 품질 분석"]
+    end
+    subgraph 인프라
+        M["Single/Distributed GPU 환경"]
+        N["실험 관리 및 로깅"]
+        O["Baseline vs Proposed 비교"]
+    end
+    
+    A --> B
+    B --> C
+    C --> I
+    C --> J
+    I --> D
+    J --> D
+    D --> E
+    E --> F
+    B --> F
+    F --> G
+    G --> E
+    D --> L
+    L --> K
+    K --> H
+    H --> O
+    M --> B
+    M --> E
+    G --> N
+    N --> M
+```
+
+## 핵심 구성 요소
+
+### 1. MC Dropout 불확실성 추정 엔진
+- **예측 분포 생성**: N회 MC 샘플링으로 확률적 예측 수행
+- **분산 계산**: Box variance, Class entropy 측정
+- **신뢰도 판정**: 예측 분산이 낮을수록 높은 자신감
+
+### 2. 신뢰도 기반 필터링 시스템
+- **고품질 Pseudo Label 선별**: threshold 기반 신뢰도 필터링
+- **적응적 가중치 부여**: 불확실성에 따른 loss 가중치 조정
+- **품질 향상 보장**: 10-15% pseudo label 정확도 개선 목표
+
+### 3. 성능 평가 및 비교 시스템
+- **Baseline 대비 평가**: 단일 예측 vs MC Dropout 효과 비교
+- **불확실성 품질 측정**: 캘리브레이션, AUROC, ECE 평가
+- **실시간 모니터링**: 예측 분산 분포, 엔트로피 히스토그램
+
+- 데이터셋: COCO, Pascal VOC
+- Teacher/Student YOLO 모델, MC Dropout 기반 pseudo label, Feature Alignment, Loss 계산
+- 불확실성 추정, 신뢰도 평가, 성능 비교 시스템
+- 단일/분산 GPU 환경, 실험 관리 및 로깅 포함

@@ -1,0 +1,277 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 연구자 시나리오 및 구조 요약
+
+본 프로젝트는 YOLOv5/v8/v9/v11/v12 기반 teacher-student SSOD 연구를 위한 실험 및 개발 시나리오를 안내합니다.
+
+## 현재 구현 상태 (2025년 1월)
+
+### ✅ 완료된 구현
+- **기본 프로젝트 구조**: src/ 디렉토리 기반 모듈화된 구조
+- **Semi-Supervised 데이터셋**: COCO 2017 labeled/unlabeled 분할 (1%, 2%, 5%, 10%)
+- **YOLO MC Dropout 모델**: YOLOWithMCDropout 클래스 구현
+- **MC Dropout 불확실성 추정**: MCDropoutDetector 클래스 구현
+- **Feature Alignment 모듈**: Teacher-Student feature 정합 기능
+- **학습 파이프라인**: train.py 메인 학습 스크립트
+- **체크포인트 관리**: 모델 저장/로드 기능
+- **설정 관리**: YAML 기반 하이퍼파라미터 설정
+
+### 🔧 최근 수정 사항
+- **MC Dropout 텐서 호환성**: 다중 스케일 feature map 크기 불일치 문제 해결
+- **체크포인트 시스템**: save_checkpoint 함수 중복 정의 문제 해결
+- **에러 처리 강화**: MC Dropout 예측 실패 시 안전장치 추가
+
+### 🚧 진행 중인 작업
+- **YOLO 손실 함수 통합**: YOLOv8 네이티브 손실 함수 연동
+- **Pseudo Label 품질 개선**: 신뢰도 기반 필터링 최적화
+- **분산 학습 지원**: 다중 GPU 환경 설정
+
+## 연구자 시나리오
+
+### 1. MC Dropout 효과 검증 실험 (신규 핵심)
+- **Baseline vs Proposed**: 단일 예측 vs MC Dropout 기반 불확실성 추정
+- **핵심 지표**: 
+  - 예측 분산 감소율: (σ²_baseline - σ²_mc) / σ²_baseline
+  - Pseudo label 정확도 향상: 필터링 전후 비교
+  - 신뢰도-정확도 캘리브레이션 곡선
+- **하이퍼파라미터 튜닝**: MC 샘플링 횟수(5,10,20), 분산 threshold(0.05,0.1,0.2)
+
+### 2. Teacher-Student 메커니즘 및 Augmentation 전략 (신규 핵심)
+- **Teacher Model 역할**: 
+  - Unlabeled image에 **Weak Augmentation** 적용
+  - MC Dropout 기반 불확실성 추정으로 고품질 Pseudo Label 생성
+  - 안정적인 예측을 통한 Student 모델 지도
+- **Student Model 역할**:
+  - Unlabeled image에 **Strong Augmentation** 적용 (일관성 학습)
+  - Labeled image에 **Strong Augmentation** 적용 (supervised 학습)
+  - Teacher의 Pseudo Label과 Ground Truth로 동시 학습
+- **Dual-View Consistency**: 같은 이미지의 다른 augmentation view 간 일관성 강화
+- **Augmentation 차별화 효과**: Teacher는 안정적 예측, Student는 robust한 특징 학습
+- **MC Dropout-Student 연동**: 
+  - Strong augmentation이 적용된 labeled/unlabeled 데이터로 Student model에서 MC Dropout 수행
+  - Pseudo label 생성과 consistency loss 계산 시 Student model의 MC Dropout 예측 활용
+  - Teacher(Weak Aug) vs Student(Strong Aug + MC Dropout) 간 일관성 학습
+
+### 3. 기본 실험 시나리오
+- **Teacher-Student 조합 실험**: 다양한 YOLO 버전 간 성능 비교
+- **MC Dropout 파라미터 튜닝**: 샘플링 횟수, dropout rate, 신뢰도 threshold 최적화
+- **Feature Alignment 효과 검증**: alignment weight 조정 및 성능 영향 분석
+- **Labeled 데이터 비율별 성능**: 1%, 2%, 5%, 10% 설정에서 성능 비교
+- **Augmentation 강도 실험**: Weak vs Strong augmentation 조합 최적화
+- **MC Dropout 연동 실험**: Student model MC Dropout과 Teacher MC Dropout 간 일관성 분석
+
+### 4. 데이터셋 실험
+- **COCO 2017**: 현재 구현된 주요 데이터셋
+- **Pascal VOC**: 향후 확장 예정
+- **Cross-dataset 일반화**: 데이터셋 간 성능 전이 평가
+
+### 5. 기술적 실험
+- **불확실성 추정 품질**: MC Dropout vs 다른 불확실성 추정 방법 비교
+- **Pseudo Label 선택 전략**: 다양한 신뢰도 메트릭 조합 실험
+- **실시간 성능**: 추론 속도와 정확도 trade-off 분석
+- **Augmentation 전략 비교**: Weak/Strong augmentation 조합별 성능 분석
+- **Student MC Dropout 효과**: Strong augmentation 데이터에서 Student MC Dropout 성능 분석
+- **Cross-Model Consistency**: Teacher MC vs Student MC Dropout 간 예측 일관성 평가
+
+## 학습 구조 다이어그램 (Teacher-Student + Augmentation 전략)
+```mermaid
+flowchart TD
+    A["Unlabeled Image"] --> B["Weak Augmentation<br/>(Teacher Path)"]
+    A --> C["Strong Augmentation<br/>(Student Path)"]
+    
+    B --> D["Teacher YOLO<br/>(MC Dropout)"]
+    D --> E["Teacher MC Dropout<br/>N회 추론"]
+    E --> F["불확실성 추정 & 필터링"]
+    F --> G["고품질 Pseudo Labels"]
+    
+    C --> H["Student YOLO<br/>(MC Dropout)"]
+    H --> S["Student MC Dropout<br/>N회 추론"]
+    S --> T["Student Consistency Loss"]
+    G --> H
+    
+    I["Labeled Image"] --> J["Strong Augmentation<br/>(Supervised)"]
+    J --> H
+    
+    subgraph "Teacher-Student Consistency"
+        K["Teacher: 안정적 예측<br/>(Weak Aug)"]
+        L["Student: Robust 학습<br/>(Strong Aug)"]
+        M["Dual-View Consistency"]
+    end
+    
+    D --> K
+    H --> L
+    G --> M
+    
+    subgraph "Loss Components"
+        N["Supervised Loss<br/>(Labeled + Strong Aug)"]
+        O["Pseudo Loss<br/>(Teacher → Student)"]
+        P["Consistency Loss<br/>(Student MC Dropout)"]
+        Q["Feature Alignment Loss"]
+        R["Cross-View Consistency<br/>(Teacher vs Student MC)"]
+    end
+    
+    H --> N
+    H --> O
+    H --> P
+    D --> Q
+    H --> Q
+    E --> R
+    H --> R
+```
+
+## 모델 아키텍처 다이어그램 (상세)
+```mermaid
+flowchart LR
+    subgraph "Teacher Model"
+        A1["입력 이미지"] --> B1["YOLOv8 Backbone"]
+        B1 --> C1["P3/P4/P5 Features"]
+        C1 --> D1["Detection Head + MC Dropout"]
+        D1 --> E1["Uncertainty Estimation"]
+    end
+    
+    subgraph "Student Model"
+        A2["입력 이미지"] --> B2["YOLOv8 Backbone"]
+        B2 --> C2["P3/P4/P5 Features"]
+        C2 --> D2["Detection Head"]
+        D2 --> E2["Final Predictions"]
+    end
+    
+    subgraph "Feature Alignment"
+        C1 --> F["Feature Alignment Module"]
+        C2 --> F
+        F --> G["MSE Alignment Loss"]
+    end
+    
+    subgraph "MC Dropout 불확실성"
+        E1 --> H1["Box Variance"]
+        E1 --> H2["Class Entropy"]
+        H1 --> H3["신뢰도 필터링"]
+        H2 --> H3
+    end
+    
+    H3 --> I["High-Quality Pseudo Labels"]
+    I --> D2
+    G --> D2
+```
+
+## 실험 실행 가이드
+
+### 1. 기본 학습 실행
+```bash
+cd src
+python train.py --config configs/yolo_config.yaml
+```
+
+### 2. MC Dropout 효과 검증 실험
+```yaml
+# configs/yolo_config.yaml에서 수정
+model:
+  dropout:
+    rate: 0.1  # 0.05, 0.1, 0.2 실험
+    num_samples: 10  # 5, 10, 20 실험
+training:
+  semi_supervised:
+    uncertainty:
+      box_std_threshold: 0.1  # 조정
+      entropy_threshold: 0.5  # 조정
+  augmentation:
+    weak:  # Teacher data only
+      horizontal_flip: 0.5
+      color_jitter: 0.2
+    strong:  # Student labeled & unlabeled data
+      horizontal_flip: 0.5
+      color_jitter: 0.4
+      rotation: 15
+      mixup: 0.2
+      cutout: 0.5
+```
+
+### 3. 다양한 데이터 비율 실험
+```yaml
+data:
+  labeled_ratio: 1.0  # 1.0, 2.0, 5.0, 10.0
+  seed: 1  # 1, 2, 3, 4, 5
+```
+
+## 평가 메트릭
+
+### 1. Detection 성능
+- **mAP@0.5**: COCO 기준 IoU 0.5에서의 평균 정밀도
+- **mAP@0.5:0.95**: COCO 기준 IoU 0.5-0.95 범위 평균 정밀도
+- **클래스별 성능**: 각 객체 클래스별 개별 성능 분석
+
+### 2. MC Dropout 특화 불확실성 품질 (신규)
+- **예측 분산 감소율**: (σ²_baseline - σ²_mc) / σ²_baseline
+- **불확실성 분해**: Aleatoric vs Epistemic uncertainty 분리
+- **신뢰도 캘리브레이션**: Reliability diagram, Brier score
+- **Expected Calibration Error (ECE)**: 예측 신뢰도와 실제 정확도 일치도
+- **AUROC**: 불확실성 기반 예측 품질 분류 성능
+
+### 3. Pseudo Label 품질 평가 (강화)
+- **Precision/Recall/F1**: 생성된 의사 레이블의 정확도
+- **필터링 전후 비교**: MC Dropout 적용 효과 정량화
+- **신뢰도 분포**: Box variance, Class entropy 히스토그램
+- **Teacher-Student 일관성**: Teacher(Weak Aug) vs Student(Strong Aug) 간 예측 일치도
+- **Augmentation Robustness**: 증강 강도별 pseudo label 안정성
+- **Student MC Dropout 품질**: Strong augmentation 데이터에서 Student MC Dropout 불확실성 추정 정확도
+- **Cross-View Consistency**: Teacher MC vs Student MC Dropout 예측 간 일관성 측정
+
+### 4. 효율성 메트릭
+- **학습 시간**: 에포크당 학습 소요 시간 (MC sampling 포함)
+- **추론 속도**: 이미지당 추론 시간 (MC Dropout 오버헤드)
+- **메모리 사용량**: GPU 메모리 효율성
+
+## 현재 이슈 및 해결 방안
+
+### 1. 기술적 이슈
+- **Feature Map 크기 불일치**: ✅ 해결 완료 (mc_dropout.py 수정)
+- **체크포인트 함수 충돌**: ✅ 해결 완료 (train_utils.py 정리)
+- **YOLO 손실 함수 통합**: 🔧 진행 중
+
+### 2. 연구적 도전
+- **Pseudo Label 품질 vs 양의 균형**: threshold 최적화 필요
+- **Feature Alignment 효과 검증**: 실험적 검증 필요
+- **실시간 제약 조건**: MC Dropout 샘플 수 vs 정확도 trade-off
+- **불확실성 캘리브레이션**: 예측 신뢰도와 실제 성능 일치도 확보
+- **Augmentation 균형**: Weak/Strong augmentation 강도 최적화
+- **Teacher-Student 동기화**: 서로 다른 augmentation view 간 일관성 유지
+- **Student MC Dropout 통합**: Strong augmentation 데이터에서 Student MC Dropout 성능 최적화
+- **Cross-Model MC 일관성**: Teacher와 Student 모델의 MC Dropout 예측 간 균형 조정
+
+## 향후 연구 방향
+
+### 1. 단기 목표 (1-2개월)
+- **MC Dropout 효과 검증**: Baseline 대비 정량적 성능 향상 측정
+- **Teacher-Student Augmentation 구현**: Weak/Strong augmentation 파이프라인 완성
+- **완전한 학습 파이프라인 검증**: end-to-end 학습 성공
+- **불확실성 품질 평가**: 캘리브레이션 및 신뢰도 분석
+- **하이퍼파라미터 최적화**: MC sampling 횟수, threshold, augmentation 강도 최적화
+- **Student MC Dropout 최적화**: Strong augmentation 환경에서 Student MC Dropout 파라미터 튜닝
+
+### 2. 중기 목표 (3-6개월)
+- **다양한 YOLO 버전 지원**: YOLOv9, v11, v12 추가
+- **Pascal VOC 데이터셋 지원**: 일반화 성능 검증
+- **실시간 최적화**: 추론 속도 개선
+
+### 3. 장기 목표 (6개월+)
+- **새로운 불확실성 추정 방법**: Ensemble, Bayesian 등
+- **Active Learning 통합**: 효율적인 데이터 선택 전략
+- **논문 출간**: 연구 결과 학술 발표
+
+## 실험 관리
+
+### 1. 결과 추적
+- **실험 로그**: `runs/train/` 디렉토리에 자동 저장
+- **메트릭 시각화**: matplotlib 기반 성능 그래프
+- **체크포인트 관리**: 주요 에포크별 모델 저장
+- **불확실성 분석**: 예측 분산 및 엔트로피 분포 추적
+
+### 2. 재현성 보장
+- **시드 고정**: 랜덤 시드 설정으로 재현 가능한 결과
+- **설정 파일 버전 관리**: YAML 설정의 Git 추적
+- **환경 관리**: pyproject.toml 기반 의존성 고정
+
+> 상세 기술 사양은 @prd.mdc, 핵심 아이디어는 @ssod-problem-definition.mdc 참고

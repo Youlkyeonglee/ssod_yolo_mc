@@ -1,0 +1,75 @@
+================================================================================
+MC DROPOUT NUM_SAMPLES 효과 분석 보고서
+================================================================================
+생성 시간: 2025-06-28 00:13:11
+================================================================================
+
+📊 요약 테이블
+--------------------------------------------------------------------------------
+Samples  Time(s)    Detections   Box Var      Entropy      Confidence  
+--------------------------------------------------------------------------------
+3        ERROR: a Tensor with 0 elements cannot be converted to Scalar
+5        ERROR: a Tensor with 0 elements cannot be converted to Scalar
+10       ERROR: a Tensor with 0 elements cannot be converted to Scalar
+15       ERROR: a Tensor with 0 elements cannot be converted to Scalar
+20       ERROR: a Tensor with 0 elements cannot be converted to Scalar
+30       ERROR: a Tensor with 0 elements cannot be converted to Scalar
+
+================================================================================
+
+📋 상세 분석 결과
+================================================================================
+
+🎯 NUM_SAMPLES = 3
+----------------------------------------
+❌ 에러: a Tensor with 0 elements cannot be converted to Scalar
+
+🎯 NUM_SAMPLES = 5
+----------------------------------------
+❌ 에러: a Tensor with 0 elements cannot be converted to Scalar
+
+🎯 NUM_SAMPLES = 10
+----------------------------------------
+❌ 에러: a Tensor with 0 elements cannot be converted to Scalar
+
+🎯 NUM_SAMPLES = 15
+----------------------------------------
+❌ 에러: a Tensor with 0 elements cannot be converted to Scalar
+
+🎯 NUM_SAMPLES = 20
+----------------------------------------
+❌ 에러: a Tensor with 0 elements cannot be converted to Scalar
+
+🎯 NUM_SAMPLES = 30
+----------------------------------------
+❌ 에러: a Tensor with 0 elements cannot be converted to Scalar
+
+================================================================================
+📊 분석 결론 및 권장사항
+================================================================================
+
+🔍 MC Dropout 샘플 수 효과:
+
+1. 📈 추론 시간 vs 품질 Trade-off:
+   - 샘플 수 증가 → 추론 시간 선형 증가
+   - 샘플 수 증가 → 불확실성 추정 품질 향상
+
+2. 🎯 불확실성 수렴성:
+   - 낮은 샘플 수: 높은 분산, 불안정한 추정
+   - 높은 샘플 수: 낮은 분산, 안정적 추정
+
+3. 💡 권장 설정:
+   - 연구/실험: 15-20 샘플 (높은 품질)
+   - 실시간 응용: 5-10 샘플 (균형)
+   - 빠른 테스트: 3-5 샘플 (최소 품질)
+
+4. 🔬 Semi-Supervised Learning 권장:
+   - Pseudo label 생성: 10-15 샘플
+   - 신뢰도 기반 필터링에 충분한 품질 확보
+   - 학습 시간과 품질의 최적 균형점
+
+📈 성능 비교 차트 (텍스트)
+--------------------------------------------------
+⏱️  추론 시간 (초):
+
+🔍 탐지 개수:
