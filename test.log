@@ -1,0 +1,408 @@
+사용 가능한 GPU: [0, 1, 2, 3]
+분산 학습 사용: True
+사용할 포트: 12355
+분산 학습 시작: 4개 프로세스
+2025-07-01 22:19:32,044 - train - INFO - Results will be saved to: runs/train/yolov8m_label_p10.0
+2025-07-01 22:19:32,990 - train - INFO - Available GPUs: 4
+2025-07-01 22:19:32,991 - train - INFO - GPU 0: 39.5GB total, 0.0GB allocated, 0.0GB cached, 39.5GB free
+2025-07-01 22:19:32,991 - train - INFO - GPU 1: 39.5GB total, 0.0GB allocated, 0.0GB cached, 39.5GB free
+2025-07-01 22:19:32,991 - train - INFO - GPU 2: 39.5GB total, 0.0GB allocated, 0.0GB cached, 39.5GB free
+2025-07-01 22:19:32,991 - train - INFO - GPU 3: 39.5GB total, 0.0GB allocated, 0.0GB cached, 39.5GB free
+2025-07-01 22:19:34,335 - train - INFO - 🔄 EMA Teacher 업데이트 활성화: decay=0.999
+2025-07-01 22:19:39,007 - train - INFO - ✓ Labeled 데이터: 11284 샘플
+2025-07-01 22:19:39,007 - train - INFO - ✓ Unlabeled 데이터: 107002 샘플
+2025-07-01 22:19:39,008 - train - INFO - ✓ Validation 데이터: 4952 샘플
+2025-07-01 22:19:39,008 - train - INFO - === GT 데이터 시각화 시작 (분산 학습) ===
+2025-07-01 22:19:39,008 - train - INFO - Train GT 데이터 시각화 중...
+2025-07-01 22:19:50,259 - train - INFO - Validation GT 데이터 시각화 중...
+🔧 Creating student model...
+✓ Successfully set model classes to 80
+🎯 Adding MC Dropout to student model...
+👨‍🏫 Creating teacher model as exact copy of student...
+✅ Teacher created via deep copy
+🔧 Removing MC Dropout hooks from teacher model...
+✅ Removed 84 MC Dropout hooks from model
+🔍 Verifying teacher-student model synchronization...
+✅ All 244 parameters have matching shapes
+✅ EMA enabled: All parameters compatible
+Loading labeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_labeled_data.txt
+Loading unlabeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_unlabeled_data.txt
+COCO 학습 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/train2017
+COCO Unlabeled 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/unlabeled2017
+
+=== 레이블 데이터 검증 ===
+데이터 루트: /media/oem/personal_vol/yklee/data/COCO/train2017
+이미지 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/images (존재: True)
+레이블 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/labels (존재: True)
+이미지 파일 수: 118287
+레이블 파일 수: 118287
+✓ 000000475744.txt: 5 객체, 5 차원
+✓ 000000521692.txt: 3 객체, 5 차원
+✓ 000000565128.txt: 20 객체, 5 차원
+==================================================
+
+=== Labeled 데이터셋 초기화 ===
+Sample image path: /media/oem/personal_vol/yklee/data/COCO/train2017/images/000000222564.jpg
+Sample label path: /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000222564.txt
+Invalid bbox size in /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000550395.txt object 14: width=0.009, height=0.000 (non-positive)
+Filtered dataset: 11284 images with valid labels out of 11285 total images
+⚠️  1개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
+✓ Labeled 데이터셋: 11284 샘플
+
+=== Unlabeled 데이터셋 초기화 ===
+✓ Unlabeled 데이터셋: 107002 샘플
+
+=== Validation 데이터셋 초기화 ===
+Sample image path: /media/oem/personal_vol/yklee/data/COCO/val2017/images/000000074733.jpg
+Sample label path: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000074733.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000270386.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000382734.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000477118.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000176701.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000370999.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000267946.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000461275.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000226111.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000556498.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000447789.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000481404.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000041488.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000528977.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000330554.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000404601.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000261796.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000260657.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000344611.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000064574.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000278006.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000098497.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000058636.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000268996.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000514540.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000560371.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000049091.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000240767.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000121153.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000127135.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000476491.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000312549.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000458790.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000228771.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000308391.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000536343.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000502910.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000542073.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000042888.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000550939.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000101022.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000402096.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000198915.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000200152.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000374727.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000025593.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000310622.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000173183.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000320706.txt
+Filtered dataset: 4952 images with valid labels out of 5000 total images
+⚠️  48개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
+✓ Validation 데이터셋: 4952 샘플
+Starting train GT data visualization...
+Processing train batch 1/3...
+Display image size: 640x640
+Visualization saved to: runs/train/yolov8m_label_p10.0/train_gt_batch_1.png
+  - Batch 1: 8 images, 8 with labels, 57 total objects
+Processing train batch 2/3...
+Display image size: 640x640
+Visualization saved to: runs/train/yolov8m_label_p10.0/train_gt_batch_2.png
+  - Batch 2: 8 images, 8 with labels, 81 total objects
+Processing train batch 3/3...
+Display image size: 640x640
+Visualization saved to: runs/train/yolov8m_label_p10.0/train_gt_batch_3.png
+  - Batch 3: 8 images, 8 with labels, 57 total objects
+Completed train GT data visualization. Saved 3 batches to runs/train/yolov8m_label_p10.0
+Starting val GT data visualization...
+Processing val batch 1/2...
+Display image size: 640x640
+Visualization saved to: runs/train/yolov8m_label_p10.0/val_gt_batch_1.png
+  - Batch 1: 8 images, 8 with labels, 52 total objects
+Processing val batch 2/2...
+Display image size: 640x640
+Visualization saved to: runs/train/yolov8m_label_p10.0/val_gt_batch_2.png
+  - Batch 2: 8 images, 8 with labels, 62 total objects
+Completed val GT data visualization. Saved 2 batches to runs/train/yolov8m_label_p10.02025-07-01 22:19:57,551 - train - INFO - ✓ GT 데이터 시각화 완료: runs/train/yolov8m_label_p10.0/gt_visualization
+2025-07-01 22:19:57,551 - train - INFO - === GT 데이터 시각화 완료 (분산 학습) ===
+2025-07-01 22:19:57,551 - train - INFO - Starting distributed training...
+
+Epoch 0/20:   0%|[32m          [0m| 0/177 [00:00<?, ?batch/s]Epoch 0/20 | Total: 17.7325 | Box: 9.560 | Cls: 7.252 | Obj: 0.974 | Align: 0.680:   0%|[32m          [0m| 0/177 [00:01<?, ?batch/s]Epoch 0/20 | Total: 17.7325 | Box: 9.560 | Cls: 7.252 | Obj: 0.974 | Align: 0.680:   1%|[32m          [0m| 1/177 [00:01<03:30,  1.20s/batch]Epoch 0/20 | Total: 18.3263 | Box: 10.549 | Cls: 8.039 | Obj: 0.973 | Align: 0.678:   1%|[32m          [0m| 1/177 [00:02<03:30,  1.20s/batch]Epoch 0/20 | Total: 18.3263 | Box: 10.549 | Cls: 8.039 | Obj: 0.973 | Align: 0.678:   1%|[32m          [0m| 2/177 [00:02<02:51,  1.02batch/s]Epoch 0/20 | Total: 18.2005 | Box: 9.775 | Cls: 7.858 | Obj: 0.974 | Align: 0.679:   1%|[32m          [0m| 2/177 [00:02<02:51,  1.02batch/s] Epoch 0/20 | Total: 18.2005 | Box: 9.775 | Cls: 7.858 | Obj: 0.974 | Align: 0.679:   2%|[32m▏         [0m| 3/177 [00:02<02:30,  1.15batch/s]Epoch 0/20 | Total: 18.1994 | Box: 10.065 | Cls: 7.265 | Obj: 0.974 | Align: 0.682:   2%|[32m▏         [0m| 3/177 [00:03<02:30,  1.15batch/s]Epoch 0/20 | Total: 18.1994 | Box: 10.065 | Cls: 7.265 | Obj: 0.974 | Align: 0.682:   2%|[32m▏         [0m| 4/177 [00:03<02:15,  1.28batch/s]Epoch 0/20 | Total: 18.0119 | Box: 9.578 | Cls: 7.383 | Obj: 0.974 | Align: 0.679:   2%|[32m▏         [0m| 4/177 [00:04<02:15,  1.28batch/s] Epoch 0/20 | Total: 18.0119 | Box: 9.578 | Cls: 7.383 | Obj: 0.974 | Align: 0.679:   3%|[32m▎         [0m| 5/177 [00:04<02:07,  1.35batch/s]Epoch 0/20 | Total: 18.0131 | Box: 9.568 | Cls: 7.613 | Obj: 0.974 | Align: 0.680:   3%|[32m▎         [0m| 5/177 [00:04<02:07,  1.35batch/s]Epoch 0/20 | Total: 18.0131 | Box: 9.568 | Cls: 7.613 | Obj: 0.974 | Align: 0.680:   3%|[32m▎         [0m| 6/177 [00:04<02:05,  1.36batch/s]Epoch 0/20 | Total: 17.8260 | Box: 9.372 | Cls: 7.226 | Obj: 0.974 | Align: 0.678:   3%|[32m▎         [0m| 6/177 [00:05<02:05,  1.36batch/s]Epoch 0/20 | Total: 17.8260 | Box: 9.372 | Cls: 7.226 | Obj: 0.974 | Align: 0.678:   4%|[32m▍         [0m| 7/177 [00:05<02:02,  1.39batch/s]Epoch 0/20 | Total: 17.0187 | Box: 8.648 | Cls: 6.755 | Obj: 0.974 | Align: 0.679:   4%|[32m▍         [0m| 7/177 [00:06<02:02,  1.39batch/s]Epoch 0/20 | Total: 17.0187 | Box: 8.648 | Cls: 6.755 | Obj: 0.974 | Align: 0.679:   5%|[32m▍         [0m| 8/177 [00:06<01:55,  1.46batch/s]Epoch 0/20 | Total: 17.7276 | Box: 8.193 | Cls: 7.841 | Obj: 0.974 | Align: 0.679:   5%|[32m▍         [0m| 8/177 [00:06<01:55,  1.46batch/s]Epoch 0/20 | Total: 17.7276 | Box: 8.193 | Cls: 7.841 | Obj: 0.974 | Align: 0.679:   5%|[32m▌         [0m| 9/177 [00:06<01:47,  1.56batch/s]Epoch 0/20 | Total: 18.3249 | Box: 9.446 | Cls: 7.890 | Obj: 0.974 | Align: 0.679:   5%|[32m▌         [0m| 9/177 [00:07<01:47,  1.56batch/s]Epoch 0/20 | Total: 18.3249 | Box: 9.446 | Cls: 7.890 | Obj: 0.974 | Align: 0.679:   6%|[32m▌         [0m| 10/177 [00:07<01:59,  1.40batch/s]Epoch 0/20 | Total: 17.6450 | Box: 7.875 | Cls: 7.289 | Obj: 0.974 | Align: 0.680:   6%|[32m▌         [0m| 10/177 [00:08<01:59,  1.40batch/s]Epoch 0/20 | Total: 17.6450 | Box: 7.875 | Cls: 7.289 | Obj: 0.974 | Align: 0.680:   6%|[32m▌         [0m| 11/177 [00:08<01:59,  1.39batch/s]Epoch 0/20 | Total: 17.8488 | Box: 8.432 | Cls: 8.028 | Obj: 0.974 | Align: 0.679:   6%|[32m▌         [0m| 11/177 [00:09<01:59,  1.39batch/s]Epoch 0/20 | Total: 17.8488 | Box: 8.432 | Cls: 8.028 | Obj: 0.974 | Align: 0.679:   7%|[32m▋         [0m| 12/177 [00:09<02:00,  1.37batch/s]Epoch 0/20 | Total: 17.6378 | Box: 9.388 | Cls: 7.667 | Obj: 0.974 | Align: 0.679:   7%|[32m▋         [0m| 12/177 [00:09<02:00,  1.37batch/s]Epoch 0/20 | Total: 17.6378 | Box: 9.388 | Cls: 7.667 | Obj: 0.974 | Align: 0.679:   7%|[32m▋         [0m| 13/177 [00:09<01:56,  1.41batch/s]Epoch 0/20 | Total: 17.5553 | Box: 8.920 | Cls: 7.825 | Obj: 0.974 | Align: 0.682:   7%|[32m▋         [0m| 13/177 [00:10<01:56,  1.41batch/s]Epoch 0/20 | Total: 17.5553 | Box: 8.920 | Cls: 7.825 | Obj: 0.974 | Align: 0.682:   8%|[32m▊         [0m| 14/177 [00:10<01:52,  1.45batch/s]Epoch 0/20 | Total: 18.1125 | Box: 9.359 | Cls: 7.966 | Obj: 0.973 | Align: 0.679:   8%|[32m▊         [0m| 14/177 [00:11<01:52,  1.45batch/s]Epoch 0/20 | Total: 18.1125 | Box: 9.359 | Cls: 7.966 | Obj: 0.973 | Align: 0.679:   8%|[32m▊         [0m| 15/177 [00:11<01:55,  1.40batch/s]Epoch 0/20 | Total: 17.4168 | Box: 9.125 | Cls: 7.540 | Obj: 0.974 | Align: 0.680:   8%|[32m▊         [0m| 15/177 [00:11<01:55,  1.40batch/s]Epoch 0/20 | Total: 17.4168 | Box: 9.125 | Cls: 7.540 | Obj: 0.974 | Align: 0.680:   9%|[32m▉         [0m| 16/177 [00:11<01:55,  1.40batch/s]Epoch 0/20 | Total: 18.1722 | Box: 10.219 | Cls: 7.646 | Obj: 0.973 | Align: 0.680:   9%|[32m▉         [0m| 16/177 [00:12<01:55,  1.40batch/s]Epoch 0/20 | Total: 18.1722 | Box: 10.219 | Cls: 7.646 | Obj: 0.973 | Align: 0.680:  10%|[32m▉         [0m| 17/177 [00:12<01:59,  1.34batch/s]Epoch 0/20 | Total: 18.0933 | Box: 8.593 | Cls: 7.065 | Obj: 0.974 | Align: 0.679:  10%|[32m▉         [0m| 17/177 [00:13<01:59,  1.34batch/s] Epoch 0/20 | Total: 18.0933 | Box: 8.593 | Cls: 7.065 | Obj: 0.974 | Align: 0.679:  10%|[32m█         [0m| 18/177 [00:13<01:53,  1.41batch/s]Epoch 0/20 | Total: 18.5552 | Box: 9.645 | Cls: 7.534 | Obj: 0.974 | Align: 0.680:  10%|[32m█         [0m| 18/177 [00:13<01:53,  1.41batch/s]Epoch 0/20 | Total: 18.5552 | Box: 9.645 | Cls: 7.534 | Obj: 0.974 | Align: 0.680:  11%|[32m█         [0m| 19/177 [00:13<01:46,  1.48batch/s]Epoch 0/20 | Total: 18.0152 | Box: 10.171 | Cls: 7.338 | Obj: 0.974 | Align: 0.678:  11%|[32m█         [0m| 19/177 [00:14<01:46,  1.48batch/s]Epoch 0/20 | Total: 18.0152 | Box: 10.171 | Cls: 7.338 | Obj: 0.974 | Align: 0.678:  11%|[32m█▏        [0m| 20/177 [00:14<01:49,  1.44batch/s]Epoch 0/20 | Total: 18.6860 | Box: 9.962 | Cls: 8.253 | Obj: 0.974 | Align: 0.678:  11%|[32m█▏        [0m| 20/177 [00:15<01:49,  1.44batch/s] Epoch 0/20 | Total: 18.6860 | Box: 9.962 | Cls: 8.253 | Obj: 0.974 | Align: 0.678:  12%|[32m█▏        [0m| 21/177 [00:15<01:46,  1.46batch/s]Epoch 0/20 | Total: 18.1138 | Box: 9.316 | Cls: 8.091 | Obj: 0.974 | Align: 0.680:  12%|[32m█▏        [0m| 21/177 [00:15<01:46,  1.46batch/s]Epoch 0/20 | Total: 18.1138 | Box: 9.316 | Cls: 8.091 | Obj: 0.974 | Align: 0.680:  12%|[32m█▏        [0m| 22/177 [00:15<01:44,  1.49batch/s]Epoch 0/20 | Total: 18.3698 | Box: 10.415 | Cls: 8.175 | Obj: 0.974 | Align: 0.679:  12%|[32m█▏        [0m| 22/177 [00:16<01:44,  1.49batch/s]Epoch 0/20 | Total: 18.3698 | Box: 10.415 | Cls: 8.175 | Obj: 0.974 | Align: 0.679:  13%|[32m█▎        [0m| 23/177 [00:16<01:45,  1.47batch/s]Epoch 0/20 | Total: 17.7471 | Box: 8.920 | Cls: 7.309 | Obj: 0.974 | Align: 0.681:  13%|[32m█▎        [0m| 23/177 [00:17<01:45,  1.47batch/s] Epoch 0/20 | Total: 17.7471 | Box: 8.920 | Cls: 7.309 | Obj: 0.974 | Align: 0.681:  14%|[32m█▎        [0m| 24/177 [00:17<01:46,  1.43batch/s]Epoch 0/20 | Total: 17.4101 | Box: 8.539 | Cls: 7.711 | Obj: 0.974 | Align: 0.680:  14%|[32m█▎        [0m| 24/177 [00:17<01:46,  1.43batch/s]Epoch 0/20 | Total: 17.4101 | Box: 8.539 | Cls: 7.711 | Obj: 0.974 | Align: 0.680:  14%|[32m█▍        [0m| 25/177 [00:17<01:41,  1.49batch/s]Epoch 0/20 | Total: 18.3645 | Box: 8.965 | Cls: 7.809 | Obj: 0.974 | Align: 0.680:  14%|[32m█▍        [0m| 25/177 [00:18<01:41,  1.49batch/s]Epoch 0/20 | Total: 18.3645 | Box: 8.965 | Cls: 7.809 | Obj: 0.974 | Align: 0.680:  15%|[32m█▍        [0m| 26/177 [00:18<01:39,  1.53batch/s]Epoch 0/20 | Total: 18.1066 | Box: 8.428 | Cls: 7.765 | Obj: 0.974 | Align: 0.679:  15%|[32m█▍        [0m| 26/177 [00:19<01:39,  1.53batch/s]Epoch 0/20 | Total: 18.1066 | Box: 8.428 | Cls: 7.765 | Obj: 0.974 | Align: 0.679:  15%|[32m█▌        [0m| 27/177 [00:19<01:41,  1.48batch/s]Epoch 0/20 | Total: 18.3686 | Box: 8.983 | Cls: 7.665 | Obj: 0.974 | Align: 0.679:  15%|[32m█▌        [0m| 27/177 [00:20<01:41,  1.48batch/s]Epoch 0/20 | Total: 18.3686 | Box: 8.983 | Cls: 7.665 | Obj: 0.974 | Align: 0.679:  16%|[32m█▌        [0m| 28/177 [00:20<01:44,  1.42batch/s]Epoch 0/20 | Total: 18.0535 | Box: 10.446 | Cls: 7.512 | Obj: 0.974 | Align: 0.680:  16%|[32m█▌        [0m| 28/177 [00:20<01:44,  1.42batch/s]Epoch 0/20 | Total: 18.0535 | Box: 10.446 | Cls: 7.512 | Obj: 0.974 | Align: 0.680:  16%|[32m█▋        [0m| 29/177 [00:20<01:46,  1.39batch/s]Epoch 0/20 | Total: 17.7632 | Box: 8.977 | Cls: 7.263 | Obj: 0.974 | Align: 0.678:  16%|[32m█▋        [0m| 29/177 [00:21<01:46,  1.39batch/s] Epoch 0/20 | Total: 17.7632 | Box: 8.977 | Cls: 7.263 | Obj: 0.974 | Align: 0.678:  17%|[32m█▋        [0m| 30/177 [00:21<01:43,  1.43batch/s]Epoch 0/20 | Total: 18.4377 | Box: 9.968 | Cls: 6.883 | Obj: 0.973 | Align: 0.678:  17%|[32m█▋        [0m| 30/177 [00:22<01:43,  1.43batch/s]Epoch 0/20 | Total: 18.4377 | Box: 9.968 | Cls: 6.883 | Obj: 0.973 | Align: 0.678:  18%|[32m█▊        [0m| 31/177 [00:22<01:44,  1.39batch/s]Epoch 0/20 | Total: 17.8013 | Box: 9.334 | Cls: 7.367 | Obj: 0.974 | Align: 0.678:  18%|[32m█▊        [0m| 31/177 [00:22<01:44,  1.39batch/s]Epoch 0/20 | Total: 17.8013 | Box: 9.334 | Cls: 7.367 | Obj: 0.974 | Align: 0.678:  18%|[32m█▊        [0m| 32/177 [00:22<01:44,  1.39batch/s]Epoch 0/20 | Total: 17.8746 | Box: 8.583 | Cls: 7.672 | Obj: 0.974 | Align: 0.681:  18%|[32m█▊        [0m| 32/177 [00:23<01:44,  1.39batch/s]Epoch 0/20 | Total: 17.8746 | Box: 8.583 | Cls: 7.672 | Obj: 0.974 | Align: 0.681:  19%|[32m█▊        [0m| 33/177 [00:23<01:39,  1.45batch/s]Epoch 0/20 | Total: 18.2809 | Box: 10.759 | Cls: 7.317 | Obj: 0.973 | Align: 0.681:  19%|[32m█▊        [0m| 33/177 [00:24<01:39,  1.45batch/s]Epoch 0/20 | Total: 18.2809 | Box: 10.759 | Cls: 7.317 | Obj: 0.973 | Align: 0.681:  19%|[32m█▉        [0m| 34/177 [00:24<01:43,  1.39batch/s]Epoch 0/20 | Total: 17.8819 | Box: 10.089 | Cls: 7.341 | Obj: 0.973 | Align: 0.678:  19%|[32m█▉        [0m| 34/177 [00:25<01:43,  1.39batch/s]Epoch 0/20 | Total: 17.8819 | Box: 10.089 | Cls: 7.341 | Obj: 0.973 | Align: 0.678:  20%|[32m█▉        [0m| 35/177 [00:25<01:44,  1.36batch/s]Epoch 0/20 | Total: 18.1990 | Box: 10.198 | Cls: 7.842 | Obj: 0.974 | Align: 0.679:  20%|[32m█▉        [0m| 35/177 [00:25<01:44,  1.36batch/s]Epoch 0/20 | Total: 18.1990 | Box: 10.198 | Cls: 7.842 | Obj: 0.974 | Align: 0.679:  20%|[32m██        [0m| 36/177 [00:25<01:44,  1.35batch/s]Epoch 0/20 | Total: 17.6326 | Box: 8.814 | Cls: 8.568 | Obj: 0.974 | Align: 0.682:  20%|[32m██        [0m| 36/177 [00:26<01:44,  1.35batch/s] Epoch 0/20 | Total: 17.6326 | Box: 8.814 | Cls: 8.568 | Obj: 0.974 | Align: 0.682:  21%|[32m██        [0m| 37/177 [00:26<01:41,  1.37batch/s]Epoch 0/20 | Total: 17.9865 | Box: 8.316 | Cls: 7.169 | Obj: 0.974 | Align: 0.680:  21%|[32m██        [0m| 37/177 [00:27<01:41,  1.37batch/s]Epoch 0/20 | Total: 17.9865 | Box: 8.316 | Cls: 7.169 | Obj: 0.974 | Align: 0.680:  21%|[32m██▏       [0m| 38/177 [00:27<01:37,  1.42batch/s]Epoch 0/20 | Total: 18.6044 | Box: 9.733 | Cls: 8.310 | Obj: 0.973 | Align: 0.679:  21%|[32m██▏       [0m| 38/177 [00:27<01:37,  1.42batch/s]Epoch 0/20 | Total: 18.6044 | Box: 9.733 | Cls: 8.310 | Obj: 0.973 | Align: 0.679:  22%|[32m██▏       [0m| 39/177 [00:27<01:39,  1.39batch/s]Epoch 0/20 | Total: 18.0328 | Box: 9.555 | Cls: 6.834 | Obj: 0.974 | Align: 0.680:  22%|[32m██▏       [0m| 39/177 [00:28<01:39,  1.39batch/s]Epoch 0/20 | Total: 18.0328 | Box: 9.555 | Cls: 6.834 | Obj: 0.974 | Align: 0.680:  23%|[32m██▎       [0m| 40/177 [00:28<01:38,  1.40batch/s]Epoch 0/20 | Total: 18.6827 | Box: 9.651 | Cls: 7.965 | Obj: 0.974 | Align: 0.678:  23%|[32m██▎       [0m| 40/177 [00:29<01:38,  1.40batch/s]Epoch 0/20 | Total: 18.6827 | Box: 9.651 | Cls: 7.965 | Obj: 0.974 | Align: 0.678:  23%|[32m██▎       [0m| 41/177 [00:29<01:38,  1.38batch/s]Epoch 0/20 | Total: 18.6666 | Box: 9.295 | Cls: 7.859 | Obj: 0.973 | Align: 0.679:  23%|[32m██▎       [0m| 41/177 [00:30<01:38,  1.38batch/s]Epoch 0/20 | Total: 18.6666 | Box: 9.295 | Cls: 7.859 | Obj: 0.973 | Align: 0.679:  24%|[32m██▎       [0m| 42/177 [00:30<01:39,  1.36batch/s]Epoch 0/20 | Total: 17.9443 | Box: 9.275 | Cls: 7.190 | Obj: 0.974 | Align: 0.680:  24%|[32m██▎       [0m| 42/177 [00:30<01:39,  1.36batch/s]Epoch 0/20 | Total: 17.9443 | Box: 9.275 | Cls: 7.190 | Obj: 0.974 | Align: 0.680:  24%|[32m██▍       [0m| 43/177 [00:30<01:35,  1.40batch/s]Epoch 0/20 | Total: 17.6300 | Box: 9.197 | Cls: 6.930 | Obj: 0.974 | Align: 0.678:  24%|[32m██▍       [0m| 43/177 [00:31<01:35,  1.40batch/s]Epoch 0/20 | Total: 17.6300 | Box: 9.197 | Cls: 6.930 | Obj: 0.974 | Align: 0.678:  25%|[32m██▍       [0m| 44/177 [00:31<01:32,  1.44batch/s]Epoch 0/20 | Total: 18.1714 | Box: 9.256 | Cls: 7.814 | Obj: 0.974 | Align: 0.679:  25%|[32m██▍       [0m| 44/177 [00:32<01:32,  1.44batch/s]Epoch 0/20 | Total: 18.1714 | Box: 9.256 | Cls: 7.814 | Obj: 0.974 | Align: 0.679:  25%|[32m██▌       [0m| 45/177 [00:32<01:34,  1.40batch/s]Epoch 0/20 | Total: 17.9534 | Box: 9.465 | Cls: 7.706 | Obj: 0.974 | Align: 0.682:  25%|[32m██▌       [0m| 45/177 [00:32<01:34,  1.40batch/s]Epoch 0/20 | Total: 17.9534 | Box: 9.465 | Cls: 7.706 | Obj: 0.974 | Align: 0.682:  26%|[32m██▌       [0m| 46/177 [00:32<01:32,  1.42batch/s]Epoch 0/20 | Total: 18.5393 | Box: 8.837 | Cls: 7.535 | Obj: 0.974 | Align: 0.678:  26%|[32m██▌       [0m| 46/177 [00:33<01:32,  1.42batch/s]Epoch 0/20 | Total: 18.5393 | Box: 8.837 | Cls: 7.535 | Obj: 0.974 | Align: 0.678:  27%|[32m██▋       [0m| 47/177 [00:33<01:33,  1.39batch/s]Epoch 0/20 | Total: 18.5659 | Box: 9.460 | Cls: 8.018 | Obj: 0.974 | Align: 0.678:  27%|[32m██▋       [0m| 47/177 [00:34<01:33,  1.39batch/s]Epoch 0/20 | Total: 18.5659 | Box: 9.460 | Cls: 8.018 | Obj: 0.974 | Align: 0.678:  27%|[32m██▋       [0m| 48/177 [00:34<01:34,  1.37batch/s]Epoch 0/20 | Total: 18.4334 | Box: 10.380 | Cls: 7.608 | Obj: 0.973 | Align: 0.679:  27%|[32m██▋       [0m| 48/177 [00:35<01:34,  1.37batch/s]Epoch 0/20 | Total: 18.4334 | Box: 10.380 | Cls: 7.608 | Obj: 0.973 | Align: 0.679:  28%|[32m██▊       [0m| 49/177 [00:35<01:36,  1.33batch/s]Epoch 0/20 | Total: 18.3844 | Box: 9.743 | Cls: 6.863 | Obj: 0.974 | Align: 0.680:  28%|[32m██▊       [0m| 49/177 [00:35<01:36,  1.33batch/s] Epoch 0/20 | Total: 18.3844 | Box: 9.743 | Cls: 6.863 | Obj: 0.974 | Align: 0.680:  28%|[32m██▊       [0m| 50/177 [00:35<01:33,  1.35batch/s]Epoch 0/20 | Total: 18.1766 | Box: 9.142 | Cls: 7.950 | Obj: 0.974 | Align: 0.679:  28%|[32m██▊       [0m| 50/177 [00:36<01:33,  1.35batch/s]Epoch 0/20 | Total: 18.1766 | Box: 9.142 | Cls: 7.950 | Obj: 0.974 | Align: 0.679:  29%|[32m██▉       [0m| 51/177 [00:36<01:29,  1.41batch/s]Epoch 0/20 | Total: 18.3163 | Box: 9.969 | Cls: 7.940 | Obj: 0.974 | Align: 0.679:  29%|[32m██▉       [0m| 51/177 [00:37<01:29,  1.41batch/s]Epoch 0/20 | Total: 18.3163 | Box: 9.969 | Cls: 7.940 | Obj: 0.974 | Align: 0.679:  29%|[32m██▉       [0m| 52/177 [00:37<01:29,  1.40batch/s]Epoch 0/20 | Total: 17.6503 | Box: 9.577 | Cls: 7.713 | Obj: 0.973 | Align: 0.679:  29%|[32m██▉       [0m| 52/177 [00:38<01:29,  1.40batch/s]Epoch 0/20 | Total: 17.6503 | Box: 9.577 | Cls: 7.713 | Obj: 0.973 | Align: 0.679:  30%|[32m██▉       [0m| 53/177 [00:38<01:31,  1.36batch/s]Epoch 0/20 | Total: 17.8338 | Box: 8.923 | Cls: 7.594 | Obj: 0.974 | Align: 0.680:  30%|[32m██▉       [0m| 53/177 [00:38<01:31,  1.36batch/s]Epoch 0/20 | Total: 17.8338 | Box: 8.923 | Cls: 7.594 | Obj: 0.974 | Align: 0.680:  31%|[32m███       [0m| 54/177 [00:38<01:27,  1.40batch/s]Epoch 0/20 | Total: 18.1845 | Box: 9.292 | Cls: 7.179 | Obj: 0.974 | Align: 0.678:  31%|[32m███       [0m| 54/177 [00:39<01:27,  1.40batch/s]Epoch 0/20 | Total: 18.1845 | Box: 9.292 | Cls: 7.179 | Obj: 0.974 | Align: 0.678:  31%|[32m███       [0m| 55/177 [00:39<01:27,  1.39batch/s]Epoch 0/20 | Total: 17.1234 | Box: 8.236 | Cls: 7.666 | Obj: 0.974 | Align: 0.679:  31%|[32m███       [0m| 55/177 [00:40<01:27,  1.39batch/s]Epoch 0/20 | Total: 17.1234 | Box: 8.236 | Cls: 7.666 | Obj: 0.974 | Align: 0.679:  32%|[32m███▏      [0m| 56/177 [00:40<01:23,  1.46batch/s]Epoch 0/20 | Total: 18.4122 | Box: 9.450 | Cls: 7.753 | Obj: 0.974 | Align: 0.679:  32%|[32m███▏      [0m| 56/177 [00:40<01:23,  1.46batch/s]Epoch 0/20 | Total: 18.4122 | Box: 9.450 | Cls: 7.753 | Obj: 0.974 | Align: 0.679:  32%|[32m███▏      [0m| 57/177 [00:40<01:18,  1.52batch/s]Epoch 0/20 | Total: 18.3473 | Box: 9.656 | Cls: 7.357 | Obj: 0.974 | Align: 0.679:  32%|[32m███▏      [0m| 57/177 [00:41<01:18,  1.52batch/s]Epoch 0/20 | Total: 18.3473 | Box: 9.656 | Cls: 7.357 | Obj: 0.974 | Align: 0.679:  33%|[32m███▎      [0m| 58/177 [00:41<01:20,  1.48batch/s]Epoch 0/20 | Total: 17.7388 | Box: 9.858 | Cls: 7.647 | Obj: 0.974 | Align: 0.679:  33%|[32m███▎      [0m| 58/177 [00:42<01:20,  1.48batch/s]Epoch 0/20 | Total: 17.7388 | Box: 9.858 | Cls: 7.647 | Obj: 0.974 | Align: 0.679:  33%|[32m███▎      [0m| 59/177 [00:42<01:20,  1.47batch/s]Epoch 0/20 | Total: 18.7105 | Box: 10.718 | Cls: 7.875 | Obj: 0.973 | Align: 0.680:  33%|[32m███▎      [0m| 59/177 [00:42<01:20,  1.47batch/s]Epoch 0/20 | Total: 18.7105 | Box: 10.718 | Cls: 7.875 | Obj: 0.973 | Align: 0.680:  34%|[32m███▍      [0m| 60/177 [00:42<01:22,  1.41batch/s]Epoch 0/20 | Total: 18.1786 | Box: 9.311 | Cls: 8.060 | Obj: 0.974 | Align: 0.679:  34%|[32m███▍      [0m| 60/177 [00:43<01:22,  1.41batch/s] Epoch 0/20 | Total: 18.1786 | Box: 9.311 | Cls: 8.060 | Obj: 0.974 | Align: 0.679:  34%|[32m███▍      [0m| 61/177 [00:43<01:21,  1.42batch/s]Epoch 0/20 | Total: 18.5507 | Box: 9.249 | Cls: 7.107 | Obj: 0.974 | Align: 0.680:  34%|[32m███▍      [0m| 61/177 [00:44<01:21,  1.42batch/s]Epoch 0/20 | Total: 18.5507 | Box: 9.249 | Cls: 7.107 | Obj: 0.974 | Align: 0.680:  35%|[32m███▌      [0m| 62/177 [00:44<01:18,  1.47batch/s]Epoch 0/20 | Total: 17.9649 | Box: 9.094 | Cls: 7.062 | Obj: 0.974 | Align: 0.679:  35%|[32m███▌      [0m| 62/177 [00:44<01:18,  1.47batch/s]Epoch 0/20 | Total: 17.9649 | Box: 9.094 | Cls: 7.062 | Obj: 0.974 | Align: 0.679:  36%|[32m███▌      [0m| 63/177 [00:44<01:17,  1.48batch/s]Epoch 0/20 | Total: 18.1854 | Box: 8.772 | Cls: 7.278 | Obj: 0.974 | Align: 0.679:  36%|[32m███▌      [0m| 63/177 [00:45<01:17,  1.48batch/s]Epoch 0/20 | Total: 18.1854 | Box: 8.772 | Cls: 7.278 | Obj: 0.974 | Align: 0.679:  36%|[32m███▌      [0m| 64/177 [00:45<01:16,  1.47batch/s]Epoch 0/20 | Total: 17.7384 | Box: 8.900 | Cls: 7.074 | Obj: 0.974 | Align: 0.680:  36%|[32m███▌      [0m| 64/177 [00:46<01:16,  1.47batch/s]Epoch 0/20 | Total: 17.7384 | Box: 8.900 | Cls: 7.074 | Obj: 0.974 | Align: 0.680:  37%|[32m███▋      [0m| 65/177 [00:46<01:14,  1.51batch/s]Epoch 0/20 | Total: 17.7870 | Box: 9.628 | Cls: 7.867 | Obj: 0.974 | Align: 0.679:  37%|[32m███▋      [0m| 65/177 [00:46<01:14,  1.51batch/s]Epoch 0/20 | Total: 17.7870 | Box: 9.628 | Cls: 7.867 | Obj: 0.974 | Align: 0.679:  37%|[32m███▋      [0m| 66/177 [00:46<01:16,  1.45batch/s]Epoch 0/20 | Total: 18.1515 | Box: 9.347 | Cls: 7.000 | Obj: 0.974 | Align: 0.679:  37%|[32m███▋      [0m| 66/177 [00:47<01:16,  1.45batch/s]Epoch 0/20 | Total: 18.1515 | Box: 9.347 | Cls: 7.000 | Obj: 0.974 | Align: 0.679:  38%|[32m███▊      [0m| 67/177 [00:47<01:16,  1.45batch/s]Epoch 0/20 | Total: 17.5372 | Box: 9.184 | Cls: 7.650 | Obj: 0.974 | Align: 0.677:  38%|[32m███▊      [0m| 67/177 [00:48<01:16,  1.45batch/s]Epoch 0/20 | Total: 17.5372 | Box: 9.184 | Cls: 7.650 | Obj: 0.974 | Align: 0.677:  38%|[32m███▊      [0m| 68/177 [00:48<01:14,  1.46batch/s]Epoch 0/20 | Total: 18.3460 | Box: 9.146 | Cls: 8.006 | Obj: 0.974 | Align: 0.678:  38%|[32m███▊      [0m| 68/177 [00:48<01:14,  1.46batch/s]Epoch 0/20 | Total: 18.3460 | Box: 9.146 | Cls: 8.006 | Obj: 0.974 | Align: 0.678:  39%|[32m███▉      [0m| 69/177 [00:48<01:13,  1.47batch/s]Epoch 0/20 | Total: 18.1877 | Box: 10.152 | Cls: 8.024 | Obj: 0.973 | Align: 0.680:  39%|[32m███▉      [0m| 69/177 [00:49<01:13,  1.47batch/s]Epoch 0/20 | Total: 18.1877 | Box: 10.152 | Cls: 8.024 | Obj: 0.973 | Align: 0.680:  40%|[32m███▉      [0m| 70/177 [00:49<01:14,  1.43batch/s]Epoch 0/20 | Total: 18.4128 | Box: 8.938 | Cls: 8.028 | Obj: 0.974 | Align: 0.678:  40%|[32m███▉      [0m| 70/177 [00:50<01:14,  1.43batch/s] Epoch 0/20 | Total: 18.4128 | Box: 8.938 | Cls: 8.028 | Obj: 0.974 | Align: 0.678:  40%|[32m████      [0m| 71/177 [00:50<01:12,  1.47batch/s]Epoch 0/20 | Total: 18.0596 | Box: 9.311 | Cls: 7.970 | Obj: 0.974 | Align: 0.679:  40%|[32m████      [0m| 71/177 [00:51<01:12,  1.47batch/s]Epoch 0/20 | Total: 18.0596 | Box: 9.311 | Cls: 7.970 | Obj: 0.974 | Align: 0.679:  41%|[32m████      [0m| 72/177 [00:51<01:12,  1.45batch/s]Epoch 0/20 | Total: 18.3139 | Box: 9.103 | Cls: 7.273 | Obj: 0.974 | Align: 0.678:  41%|[32m████      [0m| 72/177 [00:51<01:12,  1.45batch/s]Epoch 0/20 | Total: 18.3139 | Box: 9.103 | Cls: 7.273 | Obj: 0.974 | Align: 0.678:  41%|[32m████      [0m| 73/177 [00:51<01:11,  1.45batch/s]Epoch 0/20 | Total: 18.1374 | Box: 9.043 | Cls: 7.413 | Obj: 0.974 | Align: 0.677:  41%|[32m████      [0m| 73/177 [00:52<01:11,  1.45batch/s]Epoch 0/20 | Total: 18.1374 | Box: 9.043 | Cls: 7.413 | Obj: 0.974 | Align: 0.677:  42%|[32m████▏     [0m| 74/177 [00:52<01:12,  1.43batch/s]Epoch 0/20 | Total: 17.9015 | Box: 9.325 | Cls: 7.514 | Obj: 0.974 | Align: 0.678:  42%|[32m████▏     [0m| 74/177 [00:53<01:12,  1.43batch/s]Epoch 0/20 | Total: 17.9015 | Box: 9.325 | Cls: 7.514 | Obj: 0.974 | Align: 0.678:  42%|[32m████▏     [0m| 75/177 [00:53<01:09,  1.46batch/s]Epoch 0/20 | Total: 17.7095 | Box: 8.811 | Cls: 7.648 | Obj: 0.974 | Align: 0.679:  42%|[32m████▏     [0m| 75/177 [00:53<01:09,  1.46batch/s]Epoch 0/20 | Total: 17.7095 | Box: 8.811 | Cls: 7.648 | Obj: 0.974 | Align: 0.679:  43%|[32m████▎     [0m| 76/177 [00:53<01:06,  1.51batch/s]Epoch 0/20 | Total: 18.1362 | Box: 8.991 | Cls: 7.563 | Obj: 0.974 | Align: 0.680:  43%|[32m████▎     [0m| 76/177 [00:54<01:06,  1.51batch/s]Epoch 0/20 | Total: 18.1362 | Box: 8.991 | Cls: 7.563 | Obj: 0.974 | Align: 0.680:  44%|[32m████▎     [0m| 77/177 [00:54<01:04,  1.56batch/s]Epoch 0/20 | Total: 18.1215 | Box: 9.482 | Cls: 7.409 | Obj: 0.974 | Align: 0.679:  44%|[32m████▎     [0m| 77/177 [00:55<01:04,  1.56batch/s]Epoch 0/20 | Total: 18.1215 | Box: 9.482 | Cls: 7.409 | Obj: 0.974 | Align: 0.679:  44%|[32m████▍     [0m| 78/177 [00:55<01:06,  1.49batch/s]Epoch 0/20 | Total: 18.0917 | Box: 9.248 | Cls: 7.125 | Obj: 0.974 | Align: 0.679:  44%|[32m████▍     [0m| 78/177 [00:55<01:06,  1.49batch/s]Epoch 0/20 | Total: 18.0917 | Box: 9.248 | Cls: 7.125 | Obj: 0.974 | Align: 0.679:  45%|[32m████▍     [0m| 79/177 [00:55<01:05,  1.50batch/s]Epoch 0/20 | Total: 17.3596 | Box: 8.925 | Cls: 7.584 | Obj: 0.974 | Align: 0.679:  45%|[32m████▍     [0m| 79/177 [00:56<01:05,  1.50batch/s]Epoch 0/20 | Total: 17.3596 | Box: 8.925 | Cls: 7.584 | Obj: 0.974 | Align: 0.679:  45%|[32m████▌     [0m| 80/177 [00:56<01:02,  1.55batch/s]Epoch 0/20 | Total: 17.5512 | Box: 9.326 | Cls: 7.998 | Obj: 0.974 | Align: 0.678:  45%|[32m████▌     [0m| 80/177 [00:56<01:02,  1.55batch/s]Epoch 0/20 | Total: 17.5512 | Box: 9.326 | Cls: 7.998 | Obj: 0.974 | Align: 0.678:  46%|[32m████▌     [0m| 81/177 [00:56<01:02,  1.54batch/s]Epoch 0/20 | Total: 17.9841 | Box: 9.701 | Cls: 8.060 | Obj: 0.973 | Align: 0.680:  46%|[32m████▌     [0m| 81/177 [00:57<01:02,  1.54batch/s]Epoch 0/20 | Total: 17.9841 | Box: 9.701 | Cls: 8.060 | Obj: 0.973 | Align: 0.680:  46%|[32m████▋     [0m| 82/177 [00:57<01:03,  1.48batch/s]Epoch 0/20 | Total: 18.1646 | Box: 9.775 | Cls: 7.164 | Obj: 0.974 | Align: 0.679:  46%|[32m████▋     [0m| 82/177 [00:58<01:03,  1.48batch/s]Epoch 0/20 | Total: 18.1646 | Box: 9.775 | Cls: 7.164 | Obj: 0.974 | Align: 0.679:  47%|[32m████▋     [0m| 83/177 [00:58<01:04,  1.45batch/s]Epoch 0/20 | Total: 17.8985 | Box: 9.857 | Cls: 7.478 | Obj: 0.973 | Align: 0.677:  47%|[32m████▋     [0m| 83/177 [00:59<01:04,  1.45batch/s]Epoch 0/20 | Total: 17.8985 | Box: 9.857 | Cls: 7.478 | Obj: 0.973 | Align: 0.677:  47%|[32m████▋     [0m| 84/177 [00:59<01:06,  1.41batch/s]Epoch 0/20 | Total: 18.1186 | Box: 9.512 | Cls: 6.950 | Obj: 0.974 | Align: 0.680:  47%|[32m████▋     [0m| 84/177 [00:59<01:06,  1.41batch/s]Epoch 0/20 | Total: 18.1186 | Box: 9.512 | Cls: 6.950 | Obj: 0.974 | Align: 0.680:  48%|[32m████▊     [0m| 85/177 [00:59<01:04,  1.43batch/s]Epoch 0/20 | Total: 18.1274 | Box: 9.597 | Cls: 7.759 | Obj: 0.973 | Align: 0.676:  48%|[32m████▊     [0m| 85/177 [01:00<01:04,  1.43batch/s]Epoch 0/20 | Total: 18.1274 | Box: 9.597 | Cls: 7.759 | Obj: 0.973 | Align: 0.676:  49%|[32m████▊     [0m| 86/177 [01:00<01:06,  1.36batch/s]Epoch 0/20 | Total: 17.8532 | Box: 8.902 | Cls: 7.029 | Obj: 0.974 | Align: 0.678:  49%|[32m████▊     [0m| 86/177 [01:01<01:06,  1.36batch/s]Epoch 0/20 | Total: 17.8532 | Box: 8.902 | Cls: 7.029 | Obj: 0.974 | Align: 0.678:  49%|[32m████▉     [0m| 87/177 [01:01<01:04,  1.40batch/s]Epoch 0/20 | Total: 17.4866 | Box: 8.976 | Cls: 6.847 | Obj: 0.974 | Align: 0.679:  49%|[32m████▉     [0m| 87/177 [01:02<01:04,  1.40batch/s]Epoch 0/20 | Total: 17.4866 | Box: 8.976 | Cls: 6.847 | Obj: 0.974 | Align: 0.679:  50%|[32m████▉     [0m| 88/177 [01:02<01:03,  1.41batch/s]Epoch 0/20 | Total: 18.1931 | Box: 9.861 | Cls: 7.291 | Obj: 0.974 | Align: 0.678:  50%|[32m████▉     [0m| 88/177 [01:02<01:03,  1.41batch/s]Epoch 0/20 | Total: 18.1931 | Box: 9.861 | Cls: 7.291 | Obj: 0.974 | Align: 0.678:  50%|[32m█████     [0m| 89/177 [01:02<01:02,  1.40batch/s]Epoch 0/20 | Total: 18.6582 | Box: 10.275 | Cls: 7.801 | Obj: 0.974 | Align: 0.677:  50%|[32m█████     [0m| 89/177 [01:03<01:02,  1.40batch/s]Epoch 0/20 | Total: 18.6582 | Box: 10.275 | Cls: 7.801 | Obj: 0.974 | Align: 0.677:  51%|[32m█████     [0m| 90/177 [01:03<01:01,  1.41batch/s]Epoch 0/20 | Total: 17.9483 | Box: 9.514 | Cls: 7.940 | Obj: 0.974 | Align: 0.676:  51%|[32m█████     [0m| 90/177 [01:04<01:01,  1.41batch/s] Epoch 0/20 | Total: 17.9483 | Box: 9.514 | Cls: 7.940 | Obj: 0.974 | Align: 0.676:  51%|[32m█████▏    [0m| 91/177 [01:04<01:00,  1.42batch/s]Epoch 0/20 | Total: 18.8359 | Box: 10.318 | Cls: 7.810 | Obj: 0.974 | Align: 0.677:  51%|[32m█████▏    [0m| 91/177 [01:04<01:00,  1.42batch/s]Epoch 0/20 | Total: 18.8359 | Box: 10.318 | Cls: 7.810 | Obj: 0.974 | Align: 0.677:  52%|[32m█████▏    [0m| 92/177 [01:04<01:00,  1.40batch/s]Epoch 0/20 | Total: 18.5775 | Box: 9.187 | Cls: 8.005 | Obj: 0.974 | Align: 0.679:  52%|[32m█████▏    [0m| 92/177 [01:05<01:00,  1.40batch/s] Epoch 0/20 | Total: 18.5775 | Box: 9.187 | Cls: 8.005 | Obj: 0.974 | Align: 0.679:  53%|[32m█████▎    [0m| 93/177 [01:05<00:58,  1.45batch/s]Epoch 0/20 | Total: 17.9103 | Box: 9.497 | Cls: 7.674 | Obj: 0.974 | Align: 0.677:  53%|[32m█████▎    [0m| 93/177 [01:06<00:58,  1.45batch/s]Epoch 0/20 | Total: 17.9103 | Box: 9.497 | Cls: 7.674 | Obj: 0.974 | Align: 0.677:  53%|[32m█████▎    [0m| 94/177 [01:06<00:57,  1.44batch/s]Epoch 0/20 | Total: 18.2016 | Box: 9.417 | Cls: 7.757 | Obj: 0.974 | Align: 0.679:  53%|[32m█████▎    [0m| 94/177 [01:06<00:57,  1.44batch/s]Epoch 0/20 | Total: 18.2016 | Box: 9.417 | Cls: 7.757 | Obj: 0.974 | Align: 0.679:  54%|[32m█████▎    [0m| 95/177 [01:06<00:55,  1.48batch/s]Epoch 0/20 | Total: 18.1194 | Box: 9.499 | Cls: 7.697 | Obj: 0.974 | Align: 0.679:  54%|[32m█████▎    [0m| 95/177 [01:07<00:55,  1.48batch/s]Epoch 0/20 | Total: 18.1194 | Box: 9.499 | Cls: 7.697 | Obj: 0.974 | Align: 0.679:  54%|[32m█████▍    [0m| 96/177 [01:07<00:54,  1.49batch/s]Epoch 0/20 | Total: 18.0929 | Box: 10.301 | Cls: 7.408 | Obj: 0.974 | Align: 0.678:  54%|[32m█████▍    [0m| 96/177 [01:08<00:54,  1.49batch/s]Epoch 0/20 | Total: 18.0929 | Box: 10.301 | Cls: 7.408 | Obj: 0.974 | Align: 0.678:  55%|[32m█████▍    [0m| 97/177 [01:08<00:55,  1.44batch/s]Epoch 0/20 | Total: 17.8587 | Box: 9.712 | Cls: 7.400 | Obj: 0.973 | Align: 0.677:  55%|[32m█████▍    [0m| 97/177 [01:09<00:55,  1.44batch/s] Epoch 0/20 | Total: 17.8587 | Box: 9.712 | Cls: 7.400 | Obj: 0.973 | Align: 0.677:  55%|[32m█████▌    [0m| 98/177 [01:09<00:57,  1.38batch/s]Epoch 0/20 | Total: 18.4094 | Box: 10.837 | Cls: 7.721 | Obj: 0.973 | Align: 0.680:  55%|[32m█████▌    [0m| 98/177 [01:09<00:57,  1.38batch/s]Epoch 0/20 | Total: 18.4094 | Box: 10.837 | Cls: 7.721 | Obj: 0.973 | Align: 0.680:  56%|[32m█████▌    [0m| 99/177 [01:09<00:59,  1.32batch/s]Epoch 0/20 | Total: 18.5234 | Box: 9.492 | Cls: 7.504 | Obj: 0.974 | Align: 0.679:  56%|[32m█████▌    [0m| 99/177 [01:10<00:59,  1.32batch/s] Epoch 0/20 | Total: 18.5234 | Box: 9.492 | Cls: 7.504 | Obj: 0.974 | Align: 0.679:  56%|[32m█████▋    [0m| 100/177 [01:10<00:56,  1.36batch/s]Epoch 0/20 | Total: 18.2077 | Box: 10.111 | Cls: 8.003 | Obj: 0.973 | Align: 0.677:  56%|[32m█████▋    [0m| 100/177 [01:11<00:56,  1.36batch/s]Epoch 0/20 | Total: 18.2077 | Box: 10.111 | Cls: 8.003 | Obj: 0.973 | Align: 0.677:  57%|[32m█████▋    [0m| 101/177 [01:11<00:56,  1.34batch/s]Epoch 0/20 | Total: 18.5765 | Box: 10.005 | Cls: 7.308 | Obj: 0.973 | Align: 0.679:  57%|[32m█████▋    [0m| 101/177 [01:12<00:56,  1.34batch/s]Epoch 0/20 | Total: 18.5765 | Box: 10.005 | Cls: 7.308 | Obj: 0.973 | Align: 0.679:  58%|[32m█████▊    [0m| 102/177 [01:12<00:58,  1.29batch/s]Epoch 0/20 | Total: 18.0554 | Box: 9.987 | Cls: 7.493 | Obj: 0.973 | Align: 0.678:  58%|[32m█████▊    [0m| 102/177 [01:13<00:58,  1.29batch/s] Epoch 0/20 | Total: 18.0554 | Box: 9.987 | Cls: 7.493 | Obj: 0.973 | Align: 0.678:  58%|[32m█████▊    [0m| 103/177 [01:13<00:58,  1.27batch/s]Epoch 0/20 | Total: 18.1463 | Box: 10.115 | Cls: 8.064 | Obj: 0.974 | Align: 0.678:  58%|[32m█████▊    [0m| 103/177 [01:13<00:58,  1.27batch/s]Epoch 0/20 | Total: 18.1463 | Box: 10.115 | Cls: 8.064 | Obj: 0.974 | Align: 0.678:  59%|[32m█████▉    [0m| 104/177 [01:13<00:55,  1.31batch/s]Epoch 0/20 | Total: 17.6642 | Box: 9.289 | Cls: 7.486 | Obj: 0.974 | Align: 0.679:  59%|[32m█████▉    [0m| 104/177 [01:14<00:55,  1.31batch/s] Epoch 0/20 | Total: 17.6642 | Box: 9.289 | Cls: 7.486 | Obj: 0.974 | Align: 0.679:  59%|[32m█████▉    [0m| 105/177 [01:14<00:53,  1.36batch/s]Epoch 0/20 | Total: 18.7459 | Box: 9.124 | Cls: 8.279 | Obj: 0.974 | Align: 0.677:  59%|[32m█████▉    [0m| 105/177 [01:15<00:53,  1.36batch/s]Epoch 0/20 | Total: 18.7459 | Box: 9.124 | Cls: 8.279 | Obj: 0.974 | Align: 0.677:  60%|[32m█████▉    [0m| 106/177 [01:15<00:50,  1.40batch/s]Epoch 0/20 | Total: 18.0965 | Box: 9.286 | Cls: 7.671 | Obj: 0.974 | Align: 0.678:  60%|[32m█████▉    [0m| 106/177 [01:15<00:50,  1.40batch/s]Epoch 0/20 | Total: 18.0965 | Box: 9.286 | Cls: 7.671 | Obj: 0.974 | Align: 0.678:  60%|[32m██████    [0m| 107/177 [01:15<00:50,  1.40batch/s]Epoch 0/20 | Total: 18.1236 | Box: 9.346 | Cls: 7.505 | Obj: 0.974 | Align: 0.677:  60%|[32m██████    [0m| 107/177 [01:16<00:50,  1.40batch/s]Epoch 0/20 | Total: 18.1236 | Box: 9.346 | Cls: 7.505 | Obj: 0.974 | Align: 0.677:  61%|[32m██████    [0m| 108/177 [01:16<00:49,  1.39batch/s]Epoch 0/20 | Total: 17.8271 | Box: 9.815 | Cls: 7.524 | Obj: 0.974 | Align: 0.678:  61%|[32m██████    [0m| 108/177 [01:17<00:49,  1.39batch/s]Epoch 0/20 | Total: 17.8271 | Box: 9.815 | Cls: 7.524 | Obj: 0.974 | Align: 0.678:  62%|[32m██████▏   [0m| 109/177 [01:17<00:48,  1.40batch/s]Epoch 0/20 | Total: 18.4879 | Box: 10.550 | Cls: 7.750 | Obj: 0.973 | Align: 0.678:  62%|[32m██████▏   [0m| 109/177 [01:18<00:48,  1.40batch/s]Epoch 0/20 | Total: 18.4879 | Box: 10.550 | Cls: 7.750 | Obj: 0.973 | Align: 0.678:  62%|[32m██████▏   [0m| 110/177 [01:18<00:50,  1.32batch/s]Epoch 0/20 | Total: 16.8304 | Box: 9.077 | Cls: 7.135 | Obj: 0.974 | Align: 0.678:  62%|[32m██████▏   [0m| 110/177 [01:18<00:50,  1.32batch/s] Epoch 0/20 | Total: 16.8304 | Box: 9.077 | Cls: 7.135 | Obj: 0.974 | Align: 0.678:  63%|[32m██████▎   [0m| 111/177 [01:18<00:47,  1.38batch/s]Epoch 0/20 | Total: 17.7727 | Box: 8.789 | Cls: 8.076 | Obj: 0.974 | Align: 0.678:  63%|[32m██████▎   [0m| 111/177 [01:19<00:47,  1.38batch/s]Epoch 0/20 | Total: 17.7727 | Box: 8.789 | Cls: 8.076 | Obj: 0.974 | Align: 0.678:  63%|[32m██████▎   [0m| 112/177 [01:19<00:45,  1.43batch/s]Epoch 0/20 | Total: 17.5791 | Box: 8.722 | Cls: 7.387 | Obj: 0.974 | Align: 0.680:  63%|[32m██████▎   [0m| 112/177 [01:20<00:45,  1.43batch/s]Epoch 0/20 | Total: 17.5791 | Box: 8.722 | Cls: 7.387 | Obj: 0.974 | Align: 0.680:  64%|[32m██████▍   [0m| 113/177 [01:20<00:43,  1.48batch/s]Epoch 0/20 | Total: 17.7266 | Box: 8.983 | Cls: 8.116 | Obj: 0.974 | Align: 0.679:  64%|[32m██████▍   [0m| 113/177 [01:20<00:43,  1.48batch/s]Epoch 0/20 | Total: 17.7266 | Box: 8.983 | Cls: 8.116 | Obj: 0.974 | Align: 0.679:  64%|[32m██████▍   [0m| 114/177 [01:20<00:41,  1.54batch/s]Epoch 0/20 | Total: 17.6896 | Box: 9.012 | Cls: 7.462 | Obj: 0.974 | Align: 0.677:  64%|[32m██████▍   [0m| 114/177 [01:21<00:41,  1.54batch/s]Epoch 0/20 | Total: 17.6896 | Box: 9.012 | Cls: 7.462 | Obj: 0.974 | Align: 0.677:  65%|[32m██████▍   [0m| 115/177 [01:21<00:40,  1.52batch/s]Epoch 0/20 | Total: 18.0336 | Box: 9.057 | Cls: 7.831 | Obj: 0.974 | Align: 0.677:  65%|[32m██████▍   [0m| 115/177 [01:21<00:40,  1.52batch/s]Epoch 0/20 | Total: 18.0336 | Box: 9.057 | Cls: 7.831 | Obj: 0.974 | Align: 0.677:  66%|[32m██████▌   [0m| 116/177 [01:21<00:39,  1.53batch/s]Epoch 0/20 | Total: 18.3671 | Box: 9.710 | Cls: 8.037 | Obj: 0.974 | Align: 0.678:  66%|[32m██████▌   [0m| 116/177 [01:22<00:39,  1.53batch/s]Epoch 0/20 | Total: 18.3671 | Box: 9.710 | Cls: 8.037 | Obj: 0.974 | Align: 0.678:  66%|[32m██████▌   [0m| 117/177 [01:22<00:39,  1.50batch/s]Epoch 0/20 | Total: 18.3681 | Box: 9.319 | Cls: 7.726 | Obj: 0.974 | Align: 0.678:  66%|[32m██████▌   [0m| 117/177 [01:23<00:39,  1.50batch/s]Epoch 0/20 | Total: 18.3681 | Box: 9.319 | Cls: 7.726 | Obj: 0.974 | Align: 0.678:  67%|[32m██████▋   [0m| 118/177 [01:23<00:39,  1.50batch/s]Epoch 0/20 | Total: 18.0695 | Box: 9.323 | Cls: 7.985 | Obj: 0.974 | Align: 0.679:  67%|[32m██████▋   [0m| 118/177 [01:23<00:39,  1.50batch/s]Epoch 0/20 | Total: 18.0695 | Box: 9.323 | Cls: 7.985 | Obj: 0.974 | Align: 0.679:  67%|[32m██████▋   [0m| 119/177 [01:23<00:39,  1.47batch/s]Epoch 0/20 | Total: 17.9893 | Box: 9.963 | Cls: 8.031 | Obj: 0.974 | Align: 0.680:  67%|[32m██████▋   [0m| 119/177 [01:24<00:39,  1.47batch/s]Epoch 0/20 | Total: 17.9893 | Box: 9.963 | Cls: 8.031 | Obj: 0.974 | Align: 0.680:  68%|[32m██████▊   [0m| 120/177 [01:24<00:37,  1.50batch/s]Epoch 0/20 | Total: 18.0096 | Box: 9.338 | Cls: 7.996 | Obj: 0.974 | Align: 0.679:  68%|[32m██████▊   [0m| 120/177 [01:25<00:37,  1.50batch/s]Epoch 0/20 | Total: 18.0096 | Box: 9.338 | Cls: 7.996 | Obj: 0.974 | Align: 0.679:  68%|[32m██████▊   [0m| 121/177 [01:25<00:37,  1.49batch/s]Epoch 0/20 | Total: 18.3435 | Box: 9.115 | Cls: 7.508 | Obj: 0.974 | Align: 0.679:  68%|[32m██████▊   [0m| 121/177 [01:25<00:37,  1.49batch/s]Epoch 0/20 | Total: 18.3435 | Box: 9.115 | Cls: 7.508 | Obj: 0.974 | Align: 0.679:  69%|[32m██████▉   [0m| 122/177 [01:25<00:36,  1.52batch/s]Epoch 0/20 | Total: 17.6511 | Box: 7.451 | Cls: 7.803 | Obj: 0.974 | Align: 0.679:  69%|[32m██████▉   [0m| 122/177 [01:26<00:36,  1.52batch/s]Epoch 0/20 | Total: 17.6511 | Box: 7.451 | Cls: 7.803 | Obj: 0.974 | Align: 0.679:  69%|[32m██████▉   [0m| 123/177 [01:26<00:33,  1.59batch/s]Epoch 0/20 | Total: 18.1822 | Box: 10.321 | Cls: 7.449 | Obj: 0.974 | Align: 0.679:  69%|[32m██████▉   [0m| 123/177 [01:27<00:33,  1.59batch/s]Epoch 0/20 | Total: 18.1822 | Box: 10.321 | Cls: 7.449 | Obj: 0.974 | Align: 0.679:  70%|[32m███████   [0m| 124/177 [01:27<00:35,  1.51batch/s]Epoch 0/20 | Total: 17.3960 | Box: 9.169 | Cls: 7.450 | Obj: 0.974 | Align: 0.678:  70%|[32m███████   [0m| 124/177 [01:27<00:35,  1.51batch/s] Epoch 0/20 | Total: 17.3960 | Box: 9.169 | Cls: 7.450 | Obj: 0.974 | Align: 0.678:  71%|[32m███████   [0m| 125/177 [01:27<00:34,  1.50batch/s]Epoch 0/20 | Total: 18.4225 | Box: 10.103 | Cls: 7.831 | Obj: 0.974 | Align: 0.679:  71%|[32m███████   [0m| 125/177 [01:28<00:34,  1.50batch/s]Epoch 0/20 | Total: 18.4225 | Box: 10.103 | Cls: 7.831 | Obj: 0.974 | Align: 0.679:  71%|[32m███████   [0m| 126/177 [01:28<00:33,  1.54batch/s]Epoch 0/20 | Total: 17.5946 | Box: 8.972 | Cls: 7.696 | Obj: 0.974 | Align: 0.679:  71%|[32m███████   [0m| 126/177 [01:29<00:33,  1.54batch/s] Epoch 0/20 | Total: 17.5946 | Box: 8.972 | Cls: 7.696 | Obj: 0.974 | Align: 0.679:  72%|[32m███████▏  [0m| 127/177 [01:29<00:32,  1.52batch/s]Epoch 0/20 | Total: 17.7609 | Box: 8.677 | Cls: 7.211 | Obj: 0.974 | Align: 0.679:  72%|[32m███████▏  [0m| 127/177 [01:29<00:32,  1.52batch/s]Epoch 0/20 | Total: 17.7609 | Box: 8.677 | Cls: 7.211 | Obj: 0.974 | Align: 0.679:  72%|[32m███████▏  [0m| 128/177 [01:29<00:33,  1.48batch/s]Epoch 0/20 | Total: 18.7761 | Box: 9.172 | Cls: 8.131 | Obj: 0.974 | Align: 0.677:  72%|[32m███████▏  [0m| 128/177 [01:30<00:33,  1.48batch/s]Epoch 0/20 | Total: 18.7761 | Box: 9.172 | Cls: 8.131 | Obj: 0.974 | Align: 0.677:  73%|[32m███████▎  [0m| 129/177 [01:30<00:33,  1.43batch/s]Epoch 0/20 | Total: 17.2451 | Box: 9.080 | Cls: 6.943 | Obj: 0.974 | Align: 0.678:  73%|[32m███████▎  [0m| 129/177 [01:31<00:33,  1.43batch/s]Epoch 0/20 | Total: 17.2451 | Box: 9.080 | Cls: 6.943 | Obj: 0.974 | Align: 0.678:  73%|[32m███████▎  [0m| 130/177 [01:31<00:32,  1.43batch/s]Epoch 0/20 | Total: 18.1840 | Box: 9.842 | Cls: 7.951 | Obj: 0.974 | Align: 0.677:  73%|[32m███████▎  [0m| 130/177 [01:32<00:32,  1.43batch/s]Epoch 0/20 | Total: 18.1840 | Box: 9.842 | Cls: 7.951 | Obj: 0.974 | Align: 0.677:  74%|[32m███████▍  [0m| 131/177 [01:32<00:31,  1.47batch/s]Epoch 0/20 | Total: 18.3954 | Box: 8.977 | Cls: 8.292 | Obj: 0.974 | Align: 0.679:  74%|[32m███████▍  [0m| 131/177 [01:32<00:31,  1.47batch/s]Epoch 0/20 | Total: 18.3954 | Box: 8.977 | Cls: 8.292 | Obj: 0.974 | Align: 0.679:  75%|[32m███████▍  [0m| 132/177 [01:32<00:30,  1.47batch/s]Epoch 0/20 | Total: 17.1439 | Box: 8.009 | Cls: 7.779 | Obj: 0.974 | Align: 0.678:  75%|[32m███████▍  [0m| 132/177 [01:33<00:30,  1.47batch/s]Epoch 0/20 | Total: 17.1439 | Box: 8.009 | Cls: 7.779 | Obj: 0.974 | Align: 0.678:  75%|[32m███████▌  [0m| 133/177 [01:33<00:28,  1.54batch/s]Epoch 0/20 | Total: 18.0875 | Box: 9.666 | Cls: 7.732 | Obj: 0.973 | Align: 0.677:  75%|[32m███████▌  [0m| 133/177 [01:34<00:28,  1.54batch/s]Epoch 0/20 | Total: 18.0875 | Box: 9.666 | Cls: 7.732 | Obj: 0.973 | Align: 0.677:  76%|[32m███████▌  [0m| 134/177 [01:34<00:30,  1.42batch/s]Epoch 0/20 | Total: 17.6562 | Box: 8.569 | Cls: 7.169 | Obj: 0.974 | Align: 0.679:  76%|[32m███████▌  [0m| 134/177 [01:34<00:30,  1.42batch/s]Epoch 0/20 | Total: 17.6562 | Box: 8.569 | Cls: 7.169 | Obj: 0.974 | Align: 0.679:  76%|[32m███████▋  [0m| 135/177 [01:34<00:29,  1.43batch/s]Epoch 0/20 | Total: 17.9357 | Box: 10.126 | Cls: 7.499 | Obj: 0.973 | Align: 0.678:  76%|[32m███████▋  [0m| 135/177 [01:35<00:29,  1.43batch/s]Epoch 0/20 | Total: 17.9357 | Box: 10.126 | Cls: 7.499 | Obj: 0.973 | Align: 0.678:  77%|[32m███████▋  [0m| 136/177 [01:35<00:29,  1.38batch/s]Epoch 0/20 | Total: 17.9968 | Box: 8.512 | Cls: 7.630 | Obj: 0.974 | Align: 0.677:  77%|[32m███████▋  [0m| 136/177 [01:36<00:29,  1.38batch/s] Epoch 0/20 | Total: 17.9968 | Box: 8.512 | Cls: 7.630 | Obj: 0.974 | Align: 0.677:  77%|[32m███████▋  [0m| 137/177 [01:36<00:27,  1.46batch/s]Epoch 0/20 | Total: 18.3992 | Box: 9.535 | Cls: 8.448 | Obj: 0.974 | Align: 0.680:  77%|[32m███████▋  [0m| 137/177 [01:36<00:27,  1.46batch/s]Epoch 0/20 | Total: 18.3992 | Box: 9.535 | Cls: 8.448 | Obj: 0.974 | Align: 0.680:  78%|[32m███████▊  [0m| 138/177 [01:36<00:26,  1.49batch/s]Epoch 0/20 | Total: 18.5641 | Box: 10.434 | Cls: 8.287 | Obj: 0.973 | Align: 0.678:  78%|[32m███████▊  [0m| 138/177 [01:37<00:26,  1.49batch/s]Epoch 0/20 | Total: 18.5641 | Box: 10.434 | Cls: 8.287 | Obj: 0.973 | Align: 0.678:  79%|[32m███████▊  [0m| 139/177 [01:37<00:26,  1.46batch/s]Epoch 0/20 | Total: 17.9425 | Box: 9.331 | Cls: 7.963 | Obj: 0.974 | Align: 0.678:  79%|[32m███████▊  [0m| 139/177 [01:38<00:26,  1.46batch/s] Epoch 0/20 | Total: 17.9425 | Box: 9.331 | Cls: 7.963 | Obj: 0.974 | Align: 0.678:  79%|[32m███████▉  [0m| 140/177 [01:38<00:25,  1.46batch/s]Epoch 0/20 | Total: 18.1797 | Box: 9.409 | Cls: 7.293 | Obj: 0.974 | Align: 0.677:  79%|[32m███████▉  [0m| 140/177 [01:38<00:25,  1.46batch/s]Epoch 0/20 | Total: 18.1797 | Box: 9.409 | Cls: 7.293 | Obj: 0.974 | Align: 0.677:  80%|[32m███████▉  [0m| 141/177 [01:38<00:25,  1.43batch/s]Epoch 0/20 | Total: 17.7582 | Box: 9.216 | Cls: 7.112 | Obj: 0.974 | Align: 0.678:  80%|[32m███████▉  [0m| 141/177 [01:39<00:25,  1.43batch/s]Epoch 0/20 | Total: 17.7582 | Box: 9.216 | Cls: 7.112 | Obj: 0.974 | Align: 0.678:  80%|[32m████████  [0m| 142/177 [01:39<00:23,  1.48batch/s]Epoch 0/20 | Total: 18.2506 | Box: 9.026 | Cls: 7.341 | Obj: 0.974 | Align: 0.677:  80%|[32m████████  [0m| 142/177 [01:40<00:23,  1.48batch/s]Epoch 0/20 | Total: 18.2506 | Box: 9.026 | Cls: 7.341 | Obj: 0.974 | Align: 0.677:  81%|[32m████████  [0m| 143/177 [01:40<00:22,  1.48batch/s]Epoch 0/20 | Total: 18.6538 | Box: 9.658 | Cls: 7.676 | Obj: 0.974 | Align: 0.677:  81%|[32m████████  [0m| 143/177 [01:40<00:22,  1.48batch/s]Epoch 0/20 | Total: 18.6538 | Box: 9.658 | Cls: 7.676 | Obj: 0.974 | Align: 0.677:  81%|[32m████████▏ [0m| 144/177 [01:40<00:22,  1.46batch/s]Epoch 0/20 | Total: 17.8562 | Box: 9.245 | Cls: 7.180 | Obj: 0.974 | Align: 0.678:  81%|[32m████████▏ [0m| 144/177 [01:41<00:22,  1.46batch/s]Epoch 0/20 | Total: 17.8562 | Box: 9.245 | Cls: 7.180 | Obj: 0.974 | Align: 0.678:  82%|[32m████████▏ [0m| 145/177 [01:41<00:21,  1.50batch/s]Epoch 0/20 | Total: 17.6474 | Box: 9.106 | Cls: 8.176 | Obj: 0.974 | Align: 0.679:  82%|[32m████████▏ [0m| 145/177 [01:42<00:21,  1.50batch/s]Epoch 0/20 | Total: 17.6474 | Box: 9.106 | Cls: 8.176 | Obj: 0.974 | Align: 0.679:  82%|[32m████████▏ [0m| 146/177 [01:42<00:20,  1.51batch/s]Epoch 0/20 | Total: 17.4924 | Box: 8.464 | Cls: 7.996 | Obj: 0.974 | Align: 0.679:  82%|[32m████████▏ [0m| 146/177 [01:42<00:20,  1.51batch/s]Epoch 0/20 | Total: 17.4924 | Box: 8.464 | Cls: 7.996 | Obj: 0.974 | Align: 0.679:  83%|[32m████████▎ [0m| 147/177 [01:42<00:18,  1.58batch/s]Epoch 0/20 | Total: 18.0217 | Box: 9.485 | Cls: 6.933 | Obj: 0.974 | Align: 0.677:  83%|[32m████████▎ [0m| 147/177 [01:43<00:18,  1.58batch/s]Epoch 0/20 | Total: 18.0217 | Box: 9.485 | Cls: 6.933 | Obj: 0.974 | Align: 0.677:  84%|[32m████████▎ [0m| 148/177 [01:43<00:19,  1.49batch/s]Epoch 0/20 | Total: 17.9170 | Box: 9.952 | Cls: 7.937 | Obj: 0.974 | Align: 0.678:  84%|[32m████████▎ [0m| 148/177 [01:44<00:19,  1.49batch/s]Epoch 0/20 | Total: 17.9170 | Box: 9.952 | Cls: 7.937 | Obj: 0.974 | Align: 0.678:  84%|[32m████████▍ [0m| 149/177 [01:44<00:18,  1.49batch/s]Epoch 0/20 | Total: 18.1591 | Box: 9.287 | Cls: 7.877 | Obj: 0.974 | Align: 0.678:  84%|[32m████████▍ [0m| 149/177 [01:44<00:18,  1.49batch/s]Epoch 0/20 | Total: 18.1591 | Box: 9.287 | Cls: 7.877 | Obj: 0.974 | Align: 0.678:  85%|[32m████████▍ [0m| 150/177 [01:44<00:18,  1.48batch/s]Epoch 0/20 | Total: 18.2284 | Box: 9.430 | Cls: 7.209 | Obj: 0.973 | Align: 0.677:  85%|[32m████████▍ [0m| 150/177 [01:45<00:18,  1.48batch/s]Epoch 0/20 | Total: 18.2284 | Box: 9.430 | Cls: 7.209 | Obj: 0.973 | Align: 0.677:  85%|[32m████████▌ [0m| 151/177 [01:45<00:18,  1.42batch/s]Epoch 0/20 | Total: 18.3780 | Box: 10.012 | Cls: 8.190 | Obj: 0.973 | Align: 0.678:  85%|[32m████████▌ [0m| 151/177 [01:46<00:18,  1.42batch/s]Epoch 0/20 | Total: 18.3780 | Box: 10.012 | Cls: 8.190 | Obj: 0.973 | Align: 0.678:  86%|[32m████████▌ [0m| 152/177 [01:46<00:18,  1.37batch/s]Epoch 0/20 | Total: 18.2797 | Box: 9.276 | Cls: 7.911 | Obj: 0.974 | Align: 0.678:  86%|[32m████████▌ [0m| 152/177 [01:47<00:18,  1.37batch/s] Epoch 0/20 | Total: 18.2797 | Box: 9.276 | Cls: 7.911 | Obj: 0.974 | Align: 0.678:  86%|[32m████████▋ [0m| 153/177 [01:47<00:16,  1.42batch/s]Epoch 0/20 | Total: 18.0777 | Box: 9.853 | Cls: 8.088 | Obj: 0.974 | Align: 0.677:  86%|[32m████████▋ [0m| 153/177 [01:47<00:16,  1.42batch/s]Epoch 0/20 | Total: 18.0777 | Box: 9.853 | Cls: 8.088 | Obj: 0.974 | Align: 0.677:  87%|[32m████████▋ [0m| 154/177 [01:47<00:16,  1.42batch/s]Epoch 0/20 | Total: 18.2867 | Box: 9.339 | Cls: 7.989 | Obj: 0.974 | Align: 0.676:  87%|[32m████████▋ [0m| 154/177 [01:48<00:16,  1.42batch/s]Epoch 0/20 | Total: 18.2867 | Box: 9.339 | Cls: 7.989 | Obj: 0.974 | Align: 0.676:  88%|[32m████████▊ [0m| 155/177 [01:48<00:15,  1.44batch/s]Epoch 0/20 | Total: 17.5439 | Box: 8.737 | Cls: 6.911 | Obj: 0.974 | Align: 0.680:  88%|[32m████████▊ [0m| 155/177 [01:49<00:15,  1.44batch/s]Epoch 0/20 | Total: 17.5439 | Box: 8.737 | Cls: 6.911 | Obj: 0.974 | Align: 0.680:  88%|[32m████████▊ [0m| 156/177 [01:49<00:14,  1.50batch/s]Epoch 0/20 | Total: 17.9436 | Box: 9.915 | Cls: 7.899 | Obj: 0.974 | Align: 0.678:  88%|[32m████████▊ [0m| 156/177 [01:49<00:14,  1.50batch/s]Epoch 0/20 | Total: 17.9436 | Box: 9.915 | Cls: 7.899 | Obj: 0.974 | Align: 0.678:  89%|[32m████████▊ [0m| 157/177 [01:49<00:13,  1.46batch/s]Epoch 0/20 | Total: 17.9774 | Box: 9.679 | Cls: 7.701 | Obj: 0.974 | Align: 0.677:  89%|[32m████████▊ [0m| 157/177 [01:50<00:13,  1.46batch/s]Epoch 0/20 | Total: 17.9774 | Box: 9.679 | Cls: 7.701 | Obj: 0.974 | Align: 0.677:  89%|[32m████████▉ [0m| 158/177 [01:50<00:13,  1.46batch/s]Epoch 0/20 | Total: 17.5885 | Box: 10.007 | Cls: 7.437 | Obj: 0.974 | Align: 0.678:  89%|[32m████████▉ [0m| 158/177 [01:51<00:13,  1.46batch/s]Epoch 0/20 | Total: 17.5885 | Box: 10.007 | Cls: 7.437 | Obj: 0.974 | Align: 0.678:  90%|[32m████████▉ [0m| 159/177 [01:51<00:12,  1.48batch/s]Epoch 0/20 | Total: 17.3730 | Box: 8.920 | Cls: 7.442 | Obj: 0.974 | Align: 0.678:  90%|[32m████████▉ [0m| 159/177 [01:51<00:12,  1.48batch/s] Epoch 0/20 | Total: 17.3730 | Box: 8.920 | Cls: 7.442 | Obj: 0.974 | Align: 0.678:  90%|[32m█████████ [0m| 160/177 [01:51<00:11,  1.47batch/s]Epoch 0/20 | Total: 17.7709 | Box: 8.963 | Cls: 8.142 | Obj: 0.974 | Align: 0.678:  90%|[32m█████████ [0m| 160/177 [01:52<00:11,  1.47batch/s]Epoch 0/20 | Total: 17.7709 | Box: 8.963 | Cls: 8.142 | Obj: 0.974 | Align: 0.678:  91%|[32m█████████ [0m| 161/177 [01:52<00:10,  1.49batch/s]Epoch 0/20 | Total: 18.0955 | Box: 9.141 | Cls: 8.011 | Obj: 0.974 | Align: 0.677:  91%|[32m█████████ [0m| 161/177 [01:53<00:10,  1.49batch/s]Epoch 0/20 | Total: 18.0955 | Box: 9.141 | Cls: 8.011 | Obj: 0.974 | Align: 0.677:  92%|[32m█████████▏[0m| 162/177 [01:53<00:09,  1.50batch/s]Epoch 0/20 | Total: 18.1355 | Box: 9.162 | Cls: 7.965 | Obj: 0.974 | Align: 0.678:  92%|[32m█████████▏[0m| 162/177 [01:53<00:09,  1.50batch/s]Epoch 0/20 | Total: 18.1355 | Box: 9.162 | Cls: 7.965 | Obj: 0.974 | Align: 0.678:  92%|[32m█████████▏[0m| 163/177 [01:53<00:09,  1.50batch/s]Epoch 0/20 | Total: 17.8797 | Box: 8.883 | Cls: 7.274 | Obj: 0.974 | Align: 0.679:  92%|[32m█████████▏[0m| 163/177 [01:54<00:09,  1.50batch/s]Epoch 0/20 | Total: 17.8797 | Box: 8.883 | Cls: 7.274 | Obj: 0.974 | Align: 0.679:  93%|[32m█████████▎[0m| 164/177 [01:54<00:08,  1.50batch/s]Epoch 0/20 | Total: 17.6255 | Box: 9.433 | Cls: 7.930 | Obj: 0.974 | Align: 0.677:  93%|[32m█████████▎[0m| 164/177 [01:55<00:08,  1.50batch/s]Epoch 0/20 | Total: 17.6255 | Box: 9.433 | Cls: 7.930 | Obj: 0.974 | Align: 0.677:  93%|[32m█████████▎[0m| 165/177 [01:55<00:08,  1.45batch/s]Epoch 0/20 | Total: 17.8976 | Box: 9.403 | Cls: 6.991 | Obj: 0.974 | Align: 0.679:  93%|[32m█████████▎[0m| 165/177 [01:55<00:08,  1.45batch/s]Epoch 0/20 | Total: 17.8976 | Box: 9.403 | Cls: 6.991 | Obj: 0.974 | Align: 0.679:  94%|[32m█████████▍[0m| 166/177 [01:55<00:07,  1.47batch/s]Epoch 0/20 | Total: 17.7807 | Box: 8.971 | Cls: 7.590 | Obj: 0.974 | Align: 0.678:  94%|[32m█████████▍[0m| 166/177 [01:56<00:07,  1.47batch/s]Epoch 0/20 | Total: 17.7807 | Box: 8.971 | Cls: 7.590 | Obj: 0.974 | Align: 0.678:  94%|[32m█████████▍[0m| 167/177 [01:56<00:06,  1.45batch/s]Epoch 0/20 | Total: 17.7255 | Box: 9.353 | Cls: 7.647 | Obj: 0.974 | Align: 0.679:  94%|[32m█████████▍[0m| 167/177 [01:57<00:06,  1.45batch/s]Epoch 0/20 | Total: 17.7255 | Box: 9.353 | Cls: 7.647 | Obj: 0.974 | Align: 0.679:  95%|[32m█████████▍[0m| 168/177 [01:57<00:06,  1.40batch/s]Epoch 0/20 | Total: 17.9736 | Box: 9.603 | Cls: 7.377 | Obj: 0.974 | Align: 0.678:  95%|[32m█████████▍[0m| 168/177 [01:58<00:06,  1.40batch/s]Epoch 0/20 | Total: 17.9736 | Box: 9.603 | Cls: 7.377 | Obj: 0.974 | Align: 0.678:  95%|[32m█████████▌[0m| 169/177 [01:58<00:05,  1.40batch/s]Epoch 0/20 | Total: 17.5202 | Box: 10.055 | Cls: 7.426 | Obj: 0.974 | Align: 0.678:  95%|[32m█████████▌[0m| 169/177 [01:58<00:05,  1.40batch/s]Epoch 0/20 | Total: 17.5202 | Box: 10.055 | Cls: 7.426 | Obj: 0.974 | Align: 0.678:  96%|[32m█████████▌[0m| 170/177 [01:58<00:04,  1.42batch/s]Epoch 0/20 | Total: 18.4236 | Box: 8.963 | Cls: 7.784 | Obj: 0.974 | Align: 0.678:  96%|[32m█████████▌[0m| 170/177 [01:59<00:04,  1.42batch/s] Epoch 0/20 | Total: 18.4236 | Box: 8.963 | Cls: 7.784 | Obj: 0.974 | Align: 0.678:  97%|[32m█████████▋[0m| 171/177 [01:59<00:04,  1.47batch/s]Epoch 0/20 | Total: 17.9070 | Box: 9.749 | Cls: 7.686 | Obj: 0.974 | Align: 0.676:  97%|[32m█████████▋[0m| 171/177 [02:00<00:04,  1.47batch/s]Epoch 0/20 | Total: 17.9070 | Box: 9.749 | Cls: 7.686 | Obj: 0.974 | Align: 0.676:  97%|[32m█████████▋[0m| 172/177 [02:00<00:03,  1.45batch/s]Epoch 0/20 | Total: 18.2212 | Box: 9.618 | Cls: 7.586 | Obj: 0.973 | Align: 0.676:  97%|[32m█████████▋[0m| 172/177 [02:00<00:03,  1.45batch/s]Epoch 0/20 | Total: 18.2212 | Box: 9.618 | Cls: 7.586 | Obj: 0.973 | Align: 0.676:  98%|[32m█████████▊[0m| 173/177 [02:00<00:02,  1.37batch/s]Epoch 0/20 | Total: 17.2272 | Box: 8.769 | Cls: 7.283 | Obj: 0.974 | Align: 0.677:  98%|[32m█████████▊[0m| 173/177 [02:01<00:02,  1.37batch/s]Epoch 0/20 | Total: 17.2272 | Box: 8.769 | Cls: 7.283 | Obj: 0.974 | Align: 0.677:  98%|[32m█████████▊[0m| 174/177 [02:01<00:02,  1.43batch/s]Epoch 0/20 | Total: 18.1024 | Box: 9.420 | Cls: 8.044 | Obj: 0.974 | Align: 0.678:  98%|[32m█████████▊[0m| 174/177 [02:02<00:02,  1.43batch/s]Epoch 0/20 | Total: 18.1024 | Box: 9.420 | Cls: 8.044 | Obj: 0.974 | Align: 0.678:  99%|[32m█████████▉[0m| 175/177 [02:02<00:01,  1.48batch/s]Epoch 0/20 | Total: 18.1552 | Box: 9.502 | Cls: 7.934 | Obj: 0.974 | Align: 0.677:  99%|[32m█████████▉[0m| 175/177 [02:02<00:01,  1.48batch/s]Epoch 0/20 | Total: 18.1552 | Box: 9.502 | Cls: 7.934 | Obj: 0.974 | Align: 0.677:  99%|[32m█████████▉[0m| 176/177 [02:02<00:00,  1.49batch/s]Epoch 0/20 | Total: 18.0294 | Box: 9.405 | Cls: 7.892 | Obj: 0.974 | Align: 0.677:  99%|[32m█████████▉[0m| 176/177 [02:03<00:00,  1.49batch/s]Epoch 0/20 | Total: 18.0294 | Box: 9.405 | Cls: 7.892 | Obj: 0.974 | Align: 0.677: 100%|[32m██████████[0m| 177/177 [02:03<00:00,  1.79batch/s]                                                                                                                                       🔧 Creating student model...
+✓ Successfully set model classes to 80
+🎯 Adding MC Dropout to student model...
+👨‍🏫 Creating teacher model as exact copy of student...
+✅ Teacher created via deep copy
+🔧 Removing MC Dropout hooks from teacher model...
+✅ Removed 84 MC Dropout hooks from model
+🔍 Verifying teacher-student model synchronization...
+✅ All 244 parameters have matching shapes
+✅ EMA enabled: All parameters compatible
+Loading labeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_labeled_data.txt
+Loading unlabeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_unlabeled_data.txt
+COCO 학습 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/train2017
+COCO Unlabeled 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/unlabeled2017
+
+=== 레이블 데이터 검증 ===
+데이터 루트: /media/oem/personal_vol/yklee/data/COCO/train2017
+이미지 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/images (존재: True)
+레이블 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/labels (존재: True)
+이미지 파일 수: 118287
+레이블 파일 수: 118287
+✓ 000000475744.txt: 5 객체, 5 차원
+✓ 000000521692.txt: 3 객체, 5 차원
+✓ 000000565128.txt: 20 객체, 5 차원
+==================================================
+
+=== Labeled 데이터셋 초기화 ===
+Sample image path: /media/oem/personal_vol/yklee/data/COCO/train2017/images/000000222564.jpg
+Sample label path: /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000222564.txt
+Invalid bbox size in /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000550395.txt object 14: width=0.009, height=0.000 (non-positive)
+Filtered dataset: 11284 images with valid labels out of 11285 total images
+⚠️  1개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
+✓ Labeled 데이터셋: 11284 샘플
+
+=== Unlabeled 데이터셋 초기화 ===
+✓ Unlabeled 데이터셋: 107002 샘플
+
+=== Validation 데이터셋 초기화 ===
+Sample image path: /media/oem/personal_vol/yklee/data/COCO/val2017/images/000000074733.jpg
+Sample label path: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000074733.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000270386.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000382734.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000477118.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000176701.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000370999.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000267946.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000461275.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000226111.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000556498.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000447789.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000481404.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000041488.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000528977.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000330554.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000404601.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000261796.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000260657.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000344611.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000064574.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000278006.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000098497.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000058636.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000268996.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000514540.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000560371.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000049091.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000240767.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000121153.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000127135.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000476491.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000312549.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000458790.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000228771.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000308391.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000536343.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000502910.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000542073.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000042888.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000550939.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000101022.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000402096.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000198915.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000200152.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000374727.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000025593.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000310622.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000173183.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000320706.txt
+Filtered dataset: 4952 images with valid labels out of 5000 total images
+⚠️  48개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
+✓ Validation 데이터셋: 4952 샘플
+🔧 Creating student model...
+✓ Successfully set model classes to 80
+🎯 Adding MC Dropout to student model...
+👨‍🏫 Creating teacher model as exact copy of student...
+✅ Teacher created via deep copy
+🔧 Removing MC Dropout hooks from teacher model...
+✅ Removed 84 MC Dropout hooks from model
+🔍 Verifying teacher-student model synchronization...
+✅ All 244 parameters have matching shapes
+✅ EMA enabled: All parameters compatible
+Loading labeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_labeled_data.txt
+Loading unlabeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_unlabeled_data.txt
+COCO 학습 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/train2017
+COCO Unlabeled 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/unlabeled2017
+
+=== 레이블 데이터 검증 ===
+데이터 루트: /media/oem/personal_vol/yklee/data/COCO/train2017
+이미지 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/images (존재: True)
+레이블 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/labels (존재: True)
+이미지 파일 수: 118287
+레이블 파일 수: 118287
+✓ 000000475744.txt: 5 객체, 5 차원
+✓ 000000521692.txt: 3 객체, 5 차원
+✓ 000000565128.txt: 20 객체, 5 차원
+==================================================
+
+=== Labeled 데이터셋 초기화 ===
+Sample image path: /media/oem/personal_vol/yklee/data/COCO/train2017/images/000000222564.jpg
+Sample label path: /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000222564.txt
+Invalid bbox size in /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000550395.txt object 14: width=0.009, height=0.000 (non-positive)
+Filtered dataset: 11284 images with valid labels out of 11285 total images
+⚠️  1개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
+✓ Labeled 데이터셋: 11284 샘플
+
+=== Unlabeled 데이터셋 초기화 ===
+✓ Unlabeled 데이터셋: 107002 샘플
+
+=== Validation 데이터셋 초기화 ===
+Sample image path: /media/oem/personal_vol/yklee/data/COCO/val2017/images/000000074733.jpg
+Sample label path: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000074733.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000270386.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000382734.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000477118.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000176701.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000370999.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000267946.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000461275.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000226111.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000556498.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000447789.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000481404.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000041488.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000528977.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000330554.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000404601.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000261796.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000260657.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000344611.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000064574.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000278006.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000098497.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000058636.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000268996.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000514540.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000560371.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000049091.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000240767.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000121153.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000127135.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000476491.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000312549.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000458790.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000228771.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000308391.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000536343.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000502910.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000542073.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000042888.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000550939.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000101022.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000402096.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000198915.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000200152.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000374727.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000025593.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000310622.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000173183.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000320706.txt
+Filtered dataset: 4952 images with valid labels out of 5000 total images
+⚠️  48개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
+✓ Validation 데이터셋: 4952 샘플
+🔧 Creating student model...
+✓ Successfully set model classes to 80
+🎯 Adding MC Dropout to student model...
+👨‍🏫 Creating teacher model as exact copy of student...
+✅ Teacher created via deep copy
+🔧 Removing MC Dropout hooks from teacher model...
+✅ Removed 84 MC Dropout hooks from model
+🔍 Verifying teacher-student model synchronization...
+✅ All 244 parameters have matching shapes
+✅ EMA enabled: All parameters compatible
+Loading labeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_labeled_data.txt
+Loading unlabeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_unlabeled_data.txt
+COCO 학습 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/train2017
+COCO Unlabeled 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/unlabeled2017
+
+=== 레이블 데이터 검증 ===
+데이터 루트: /media/oem/personal_vol/yklee/data/COCO/train2017
+이미지 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/images (존재: True)
+레이블 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/labels (존재: True)
+이미지 파일 수: 118287
+레이블 파일 수: 118287
+✓ 000000475744.txt: 5 객체, 5 차원
+✓ 000000521692.txt: 3 객체, 5 차원
+✓ 000000565128.txt: 20 객체, 5 차원
+==================================================
+
+=== Labeled 데이터셋 초기화 ===
+Sample image path: /media/oem/personal_vol/yklee/data/COCO/train2017/images/000000222564.jpg
+Sample label path: /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000222564.txt
+Invalid bbox size in /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000550395.txt object 14: width=0.009, height=0.000 (non-positive)
+Filtered dataset: 11284 images with valid labels out of 11285 total images
+⚠️  1개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
+✓ Labeled 데이터셋: 11284 샘플
+
+=== Unlabeled 데이터셋 초기화 ===
+✓ Unlabeled 데이터셋: 107002 샘플
+
+=== Validation 데이터셋 초기화 ===
+Sample image path: /media/oem/personal_vol/yklee/data/COCO/val2017/images/000000074733.jpg
+Sample label path: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000074733.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000270386.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000382734.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000477118.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000176701.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000370999.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000267946.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000461275.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000226111.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000556498.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000447789.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000481404.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000041488.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000528977.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000330554.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000404601.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000261796.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000260657.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000344611.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000064574.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000278006.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000098497.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000058636.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000268996.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000514540.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000560371.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000049091.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000240767.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000121153.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000127135.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000476491.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000312549.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000458790.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000228771.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000308391.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000536343.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000502910.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000542073.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000042888.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000550939.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000101022.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000402096.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000198915.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000200152.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000374727.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000025593.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000310622.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000173183.txt
+Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000320706.txt
+Filtered dataset: 4952 images with valid labels out of 5000 total images
+⚠️  48개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
+✓ Validation 데이터셋: 4952 샘플

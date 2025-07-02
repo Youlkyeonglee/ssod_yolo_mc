@@ -1,0 +1,38 @@
+# MC Dropout Pseudo Label 분포 시각화 전용 설정 파일
+# 빠른 테스트와 시각화를 위한 경량 설정
+
+model:
+  name: "yolov8n"  # 가벼운 nano 모델 사용
+  dropout:
+    rate: 0.1
+    num_samples: 5  # 빠른 테스트를 위해 샘플 수 줄임
+  mc_dropout_enabled: true
+
+data:
+  nc: 80  # COCO 클래스 수
+  img_size: 640
+  batch_size: 4  # 메모리 절약을 위해 작은 배치 크기
+  labeled_ratio: 1.0
+  seed: 1
+  max_samples: 100  # 빠른 테스트를 위해 적은 샘플 수
+  num_workers: 2
+  
+  # COCO 데이터셋 경로 (사용자 환경에 맞게 수정 필요)
+  coco:
+    train_root: "/media/oem/personal_vol/yklee/data/COCO/train2017"
+    val_root: "/media/oem/personal_vol/yklee/data/COCO/val2017"
+    train_anno: "/media/oem/personal_vol/yklee/data/COCO/annotations/instances_train2017.json"
+    val_anno: "/media/oem/personal_vol/yklee/data/COCO/annotations/instances_val2017.json"
+
+training:
+  semi_supervised:
+    conf_threshold: 0.25
+    uncertainty:
+      box_std_threshold: 0.1
+      entropy_threshold: 0.5
+
+# GPU 설정
+gpu:
+  use_gpu: true
+  auto_detect: true
+  gpu_ids: [0]  # 단일 GPU 사용 

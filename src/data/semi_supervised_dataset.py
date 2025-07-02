@@ -63,9 +63,12 @@ class SemiSupervisedDataset:
         print(f"Loading labeled data from: {labeled_list}")
         print(f"Loading unlabeled data from: {unlabeled_list}")
         
-        # 실제 COCO 데이터 경로
-        coco_data_root = "/media/lee/Data/COCO/train2017"
+        # 설정 파일에서 COCO 데이터 경로 읽어오기
+        coco_data_root = self.config['data']['coco']['train_root']
+        unlabeled_coco_data_root = self.config['data']['coco']['unlabeled_root']
         
+        print(f"COCO 학습 데이터 경로: {coco_data_root}")
+        print(f"COCO Unlabeled 데이터 경로: {unlabeled_coco_data_root}")
         # 먼저 레이블 데이터 존재 여부 확인
         print("\n=== 레이블 데이터 검증 ===")
         self._check_label_availability(coco_data_root)

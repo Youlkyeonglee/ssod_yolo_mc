@@ -110,10 +110,14 @@ def update_pseudo_labels(
                 
             images = batch['images'].to(device)
             
-            # MC Dropout을 통한 불확실성 추정
+            # MC Dropout을 통한 불확실성 추정 (다층 신뢰도 평가 시스템)
             with torch.no_grad():
                 try:
-                    batch_results = detector.predict_with_uncertainty(images)
+                    batch_results = detector.predict_with_uncertainty(
+                        images, 
+                        device=device, 
+                        config=config
+                    )
                     
                     # batch_results가 None이거나 빈 경우 처리
                     if batch_results is None:
@@ -129,7 +133,7 @@ def update_pseudo_labels(
                             total_labels += 1
                         continue
                     
-                    # 각 이미지의 예측 결과를 의사 레이블로 변환
+                    # 다층 신뢰도 평가 결과에서 각 이미지의 예측 결과를 의사 레이블로 변환
                     for pred in batch_results:
                         if max_pseudo_labels is not None and total_labels >= max_pseudo_labels:
                             break
@@ -141,17 +145,30 @@ def update_pseudo_labels(
                                 pred['boxes']  # x, y, w, h
                             ], dim=1)
                             
-                            pseudo_labels.append({
+                            # 다층 신뢰도 통계 포함하여 저장
+                            pseudo_label = {
                                 'boxes': boxes_with_classes,
                                 'scores': pred['scores'],
                                 'labels': pred['labels']
-                            })
+                            }
+                            
+                            # 다층 신뢰도 통계가 있으면 추가
+                            if 'reliability_stats' in pred:
+                                pseudo_label['reliability_stats'] = pred['reliability_stats']
+                            
+                            pseudo_labels.append(pseudo_label)
                         else:
                             # 예측이 없는 경우 빈 레이블 추가
                             pseudo_labels.append({
                                 'boxes': torch.zeros((0, 5), device=device),
                                 'scores': torch.zeros(0, device=device),
-                                'labels': torch.zeros(0, dtype=torch.long, device=device)
+                                'labels': torch.zeros(0, dtype=torch.long, device=device),
+                                'reliability_stats': {
+                                    'total_detections': 0,
+                                    'high_quality': 0,
+                                    'medium_quality': 0,
+                                    'avg_final_score': 0.0
+                                }
                             })
                         total_labels += 1
                         

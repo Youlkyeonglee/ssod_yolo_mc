@@ -8,9 +8,18 @@ model:
     enabled: true
     rate: 0.1
     num_samples: 10
+  
+  # 🎯 Feature Alignment 실험 설정
   feature_alignment:
-    enabled: true
-    weight: 0.1
+    enabled: true           # Feature alignment 활성화/비활성화 (실험 변수)
+    weight: 0.1            # Feature alignment loss 가중치 (실험 변수: 0.05, 0.1, 0.2)
+    
+    # 실험 시나리오:
+    # - enabled: true, weight: 0.1   → Feature Alignment 포함 (Proposed)
+    # - enabled: false, weight: 0.0  → Feature Alignment 제외 (Baseline)
+    # - enabled: true, weight: 0.05  → 약한 Feature Alignment
+    # - enabled: true, weight: 0.2   → 강한 Feature Alignment
+  
   # Teacher-Student EMA 설정
   ema:
     enabled: true
@@ -20,28 +29,57 @@ inference:
   conf_threshold: 0.25
   device: null  # null for auto-detection, or specify 'cpu', 'cuda:0', etc.
   
+# GPU 및 분산 학습 설정
+gpu:
+  # GPU 사용 설정
+  use_gpu: true                    # GPU 사용 여부
+  auto_detect: true                # 자동 GPU 감지 (true일 경우 gpu_ids 무시)
+  gpu_ids: [0, 1, 2, 3]           # 사용할 GPU ID 리스트 (auto_detect가 false일 때 사용)
+  
+  # 분산 학습 설정
+  distributed:
+    enabled: true                  # 분산 학습 활성화 여부
+    backend: "nccl"               # 분산 백엔드 (nccl, gloo)
+    world_size: null              # 전체 프로세스 수 (null일 경우 자동 설정)
+    rank: null                    # 현재 프로세스 순위 (null일 경우 자동 설정)
+    local_rank: null              # 로컬 프로세스 순위 (null일 경우 자동 설정)
+    master_addr: "localhost"      # 마스터 노드 주소
+    master_port: "12355"          # 마스터 노드 포트
+    
+  # 메모리 관리
+  memory:
+    mixed_precision: true         # 혼합 정밀도 학습 (AMP)
+    gradient_accumulation: 1      # 그래디언트 누적 단계
+    pin_memory: true              # DataLoader pin_memory 설정
+    non_blocking: true            # 비동기 GPU 전송
+  
 data:
   # 데이터셋 경로
-  root: "/home/lee/research/Research2025/ssod_yolo_mc/src/data/semi_supervised"  # 데이터 리스트 파일이 있는 디렉토리
+  root: "/media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised"  # 데이터 리스트 파일이 있는 디렉토리
+  
+  # COCO 학습 데이터 경로
+  coco:
+    train_root: "/media/oem/personal_vol/yklee/data/COCO/train2017"
+    unlabeled_root: "/media/oem/personal_vol/yklee/data/COCO/unlabeled2017"
   
   val:
-    root: "/media/lee/Data/COCO/val2017"
-    images: "/media/lee/Data/COCO/val2017/images"
-    labels: "/media/lee/Data/COCO/val2017/labels"
+    root: "/media/oem/personal_vol/yklee/data/COCO/val2017"
+    images: "/media/oem/personal_vol/yklee/data/COCO/val2017/images"
+    labels: "/media/oem/personal_vol/yklee/data/COCO/val2017/labels"
   
   # 데이터셋 구조
   format: "yolo"  # 데이터셋 형식 (yolo, coco, voc 등)
   
   # 클래스 설정
-  nc: 91  # number of classes
+  nc: 80  # number of classes
   names: ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", 
-          "fire hydrant", "street sign", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", 
-          "cow", "elephant", "bear", "zebra", "giraffe", "hat", "backpack", "umbrella", "shoe", "eye glasses", "handbag", 
-          "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", 
-          "surfboard", "tennis racket", "bottle", "plate", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", 
-          "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "mirror",
-          "dining table", "window", "desk", "toilet", "door", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", 
-          "toaster", "sink", "refrigerator", "blender","book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush", "hair brush", "toothpaste"]  # COCO 데이터셋의 80개 클래스
+          "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", 
+          "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", 
+          "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", 
+          "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", 
+          "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", 
+          "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", 
+          "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]  # COCO 데이터셋의 80개 클래스
   # names: ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", 
   #         "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", 
   #         "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", 
@@ -52,10 +90,10 @@ data:
   #         "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
   # 이미지 설정
   img_size: 640  # 입력 이미지 크기
-  batch_size: 8  # 배치 크기
+  batch_size: 16  # 배치 크기
   num_workers: 0  # DataLoader 멀티프로세싱 비활성화 (에러 방지)
   augment: true  # 데이터 증강 사용 여부
-  max_samples: null  # 연구용: 적당한 규모 (빠른 실험을 위해 1000개, null은 전체 데이터 사용)
+  max_samples: 33  # 연구용: 적당한 규모 (빠른 실험을 위해 1000개, null은 전체 데이터 사용)
   labeled_ratio: 10.0  # 레이블된 데이터 비율 (1, 2, 5, 10)
   seed: 1 # 데이터 분포 시드 (1,2,3,4,5)
   
@@ -88,7 +126,7 @@ training:
   # 학습 파라미터
   epochs: 20  # 연구용: COCO에서 일반적으로 충분한 에포크 수
   mature_epoch: 5  # pseudo label 시작: 초기 supervised 학습 후 semi-supervised 전환
-  batch_size: 8
+  batch_size: 16
   img_size: 640
   learning_rate: 0.001
   weight_decay: 0.0005
@@ -108,9 +146,24 @@ training:
   
   # Loss 가중치 설정
   loss_weights:
-    box_loss_gain: 0.15     # bbox regression loss (사용자 요구사항: bbox 중시)
-    cls_loss_gain: 0.3      # classification loss
-    obj_loss_gain: 0.5      # objectness loss
+    # Supervised YOLO Loss 설정
+    supervised:
+      box_loss_gain: 7.5        # bbox regression loss 가중치 (CIoU)
+      cls_loss_gain: 0.5        # classification loss 가중치 (Cross Entropy)
+      obj_loss_gain: 1.0        # objectness loss 가중치 (Binary CE)
+      bbox_loss_type: "ciou"    # bbox loss 타입 (ciou, giou, diou, iou)
+      focal_loss_gamma: 0.0     # focal loss gamma (0.0: 표준 Cross Entropy)
+      label_smoothing: 0.0      # label smoothing 비율 (0.0-1.0)
+    
+    # Semi-Supervised YOLO Loss 설정  
+    semi_supervised:
+      box_loss_gain: 7.5        # bbox regression loss 가중치
+      cls_loss_gain: 0.5        # classification loss 가중치
+      obj_loss_gain: 1.0        # objectness loss 가중치
+      uncertainty_alpha: 5.0    # 불확실성 기반 가중치 조정
+      bbox_loss_type: "ciou"    # bbox loss 타입
+      focal_loss_gamma: 0.0     # focal loss gamma
+      label_smoothing: 0.0      # label smoothing 비율
   
   # 옵티마이저 설정
   optimizer:
@@ -127,7 +180,7 @@ training:
     warmup_bias_lr: 0.1
   
   # 저장 설정
-  save_interval: 5  # 매 에포크마다 저장 및 평가 (테스트용)
+  save_interval: 1  # 매 에포크마다 저장 및 평가 (테스트용)
   val_interval: 5      # 매 에포크마다 검증 (테스트용)
   checkpoint_dir: "checkpoints"
   
@@ -135,9 +188,18 @@ training:
   semi_supervised:
     enabled: true
     pseudo_label_start_epoch: 5  # 의사 레이블링 시작 에포크
-    pseudo_label_weight: 0.5      # 의사 레이블 손실 가중치
+    unlabeled_weight: 0.5      # unlabeled 데이터 손실 가중치
+    pseudo_label_weight: 0.5   # pseudo label 가중치 (호환성)
     conf_threshold: 0.5           # 의사 레이블 신뢰도 임계값
     max_pseudo_labels: 2000       # 최대 의사 레이블 개수 (null: 제한 없음)
+    
+    # 🎯 분포 기반 Consistency Loss 설정
+    consistency_loss_type: "kl_divergence"  # 'kl_divergence', 'js_divergence', 'kl_js_combined', 'wasserstein', 'cosine'
+    consistency_temperature: 3.0            # Temperature scaling for softmax distributions
+    bbox_consistency_weight: 1.0            # BBox coordinates consistency 가중치
+    class_consistency_weight: 1.0           # Class logits consistency 가중치
+    obj_consistency_weight: 1.0             # Objectness consistency 가중치
+    
     # MC Dropout 설정
     uncertainty:
       box_std_threshold: 0.1     # 박스 좌표 불확실성 임계값
@@ -153,6 +215,7 @@ training:
       box_std_threshold: 0.1          # bbox 표준편차 임계값
       entropy_threshold: 0.5          # 클래스 엔트로피 임계값
       confidence_threshold: 0.7       # 신뢰도 임계값
+      reliability_threshold: 0.8      # 다층 신뢰도 평가 임계값 (0.0-1.0)
   
   # Feature Alignment 설정
   feature_alignment:

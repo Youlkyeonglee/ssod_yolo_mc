@@ -441,7 +441,7 @@ class MCDropoutDetector:
         # print(f"예측 분산 감소율: {variance_reduction:.2%}")
 
     @torch.no_grad()
-    def predict_with_uncertainty(
+    def predict_with_uncertainty_legacy(
         self,
         image: Union[str, torch.Tensor],
         device: Optional[str] = None,
@@ -458,15 +458,34 @@ class MCDropoutDetector:
         Returns:
             예측 결과와 불확실성 측정값을 포함한 딕셔너리
         """
-        if device is None:
-            device = next(self.model.parameters()).device
+        # 모델이 있는 디바이스 자동 감지
+        try:
+            # DDP 모델인 경우 module 속성 사용
+            if hasattr(self.model, 'module'):
+                model_device = next(self.model.module.parameters()).device
+            else:
+                model_device = next(self.model.parameters()).device
+            
+            if device is None:
+                device = model_device
+            elif isinstance(device, str) and device != str(model_device):
+                print(f"⚠️  Device mismatch in legacy: model on {model_device}, requested {device}")
+                device = model_device  # 모델 디바이스로 강제 설정
+        except Exception as e:
+            print(f"❌ Device setup error in legacy: {e}")
+            # 기본 디바이스 사용
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
         # 이미지를 텐서로 변환
         if isinstance(image, str):
             # 이미지 로드 및 전처리 로직 추가 필요
             pass
         elif isinstance(image, torch.Tensor):
-            image = image.to(device)
+            try:
+                image = image.to(device)
+            except Exception as e:
+                print(f"❌ Image device transfer error: {e}")
+                device = image.device  # 이미지가 있는 디바이스 사용
         
         # 여러 번의 추론 수행
         predictions = []
@@ -474,7 +493,38 @@ class MCDropoutDetector:
         
         try:
             for _ in range(self.num_samples):
-                pred_output = self.model(image)
+                # 안전한 모델 호출 (DDP/DataParallel 지원)
+                try:
+                    # 모델과 이미지가 같은 디바이스에 있는지 확인
+                    if hasattr(self.model, 'module'):
+                        # DDP 또는 DataParallel 모델
+                        model_device = next(self.model.module.parameters()).device
+                        actual_model = self.model.module
+                    else:
+                        model_device = next(self.model.parameters()).device
+                        actual_model = self.model
+                    
+                    # 이미지를 모델 디바이스로 이동
+                    if image.device != model_device:
+                        print(f"🔄 Moving image from {image.device} to model device {model_device}")
+                        image = image.to(model_device)
+                    
+                    # 모델 호출
+                    pred_output = self.model(image)
+                    
+                except RuntimeError as device_error:
+                    if "device" in str(device_error).lower():
+                        print(f"🚨 Device error in MC Dropout: {device_error}")
+                        # 이미지 디바이스로 모델을 이동시도 (위험하지만 최후 수단)
+                        try:
+                            print(f"🔄 Moving model to image device: {image.device}")
+                            self.model = self.model.to(image.device)
+                            pred_output = self.model(image)
+                        except Exception as move_error:
+                            print(f"❌ Failed to move model: {move_error}")
+                            raise device_error
+                    else:
+                        raise device_error
                 
                 # 딕셔너리 형태인 경우 predictions 키에서 실제 예측값 추출
                 if isinstance(pred_output, dict):
@@ -796,7 +846,7 @@ class MCDropoutDetector:
             결과 딕셔너리에 'consistency_loss' 키 추가
         """
         # 기존 예측 수행
-        result = self.predict_with_uncertainty(image, device, save_predictions=False)
+        result = self.predict_with_uncertainty_legacy(image, device, save_predictions=False)
         
         if result is None:
             return None
@@ -989,6 +1039,334 @@ class MCDropoutDetector:
         except Exception as e:
             print(f"Error in calculate_cross_view_consistency_loss: {e}")
             return torch.tensor(0.0) 
+    
+    def generate_reliable_pseudo_labels(
+        self, 
+        all_predictions: torch.Tensor, 
+        reliability_threshold: float = 0.8
+    ) -> List[Dict[str, Any]]:
+        """다층 신뢰도 평가 시스템으로 고품질 pseudo label 생성
+        
+        Args:
+            all_predictions: MC Dropout 예측 결과 (num_samples, batch, N, 5+num_classes)
+            reliability_threshold: 신뢰도 임계값 (0.0-1.0)
+        
+        Returns:
+            고품질 pseudo label 리스트
+        """
+        
+        def calculate_iou(box1: torch.Tensor, box2: torch.Tensor) -> float:
+            """두 박스 간 IoU 계산 (xywh 형식)"""
+            # xywh -> xyxy 변환
+            def xywh_to_xyxy(box):
+                x_center, y_center, width, height = box
+                x1 = x_center - width / 2
+                y1 = y_center - height / 2
+                x2 = x_center + width / 2
+                y2 = y_center + height / 2
+                return torch.stack([x1, y1, x2, y2])
+            
+            box1_xyxy = xywh_to_xyxy(box1)
+            box2_xyxy = xywh_to_xyxy(box2)
+            
+            # Intersection 계산
+            x1 = torch.max(box1_xyxy[0], box2_xyxy[0])
+            y1 = torch.max(box1_xyxy[1], box2_xyxy[1])
+            x2 = torch.min(box1_xyxy[2], box2_xyxy[2])
+            y2 = torch.min(box1_xyxy[3], box2_xyxy[3])
+            
+            intersection = torch.clamp(x2 - x1, min=0) * torch.clamp(y2 - y1, min=0)
+            
+            # Union 계산
+            area1 = (box1_xyxy[2] - box1_xyxy[0]) * (box1_xyxy[3] - box1_xyxy[1])
+            area2 = (box2_xyxy[2] - box2_xyxy[0]) * (box2_xyxy[3] - box2_xyxy[1])
+            union = area1 + area2 - intersection
+            
+            iou = intersection / (union + 1e-10)
+            return iou.item()
+        
+        def calculate_reliability_score(mc_samples_single_det: torch.Tensor) -> Dict[str, float]:
+            """단일 detection에 대한 종합 신뢰도 점수 계산"""
+            
+            # Level 1: Geometric Consistency (박스 기하학적 일관성)
+            boxes = mc_samples_single_det[:, :4]
+            box_std = torch.std(boxes, dim=0)
+            geometric_score = torch.exp(-torch.mean(box_std))  # 분산이 낮을수록 높은 점수
+            
+            # Level 2: Semantic Consistency (클래스 의미적 일관성)  
+            class_logits = mc_samples_single_det[:, 5:]
+            class_probs = torch.softmax(class_logits, dim=-1)
+            
+            # 클래스 예측의 엔트로피 (낮을수록 확실함)
+            mean_probs = torch.mean(class_probs, dim=0)
+            entropy = -torch.sum(mean_probs * torch.log(mean_probs + 1e-10))
+            semantic_score = torch.exp(-entropy)
+            
+            # Level 3: Confidence Stability (신뢰도 안정성)
+            conf_scores = torch.sigmoid(mc_samples_single_det[:, 4])
+            conf_cv = torch.std(conf_scores) / (torch.mean(conf_scores) + 1e-10)  # Coefficient of Variation
+            stability_score = torch.exp(-conf_cv)
+            
+            # Level 4: Inter-sample Agreement (샘플 간 합의도)
+            pairwise_agreements = []
+            num_samples = mc_samples_single_det.shape[0]
+            
+            for i in range(num_samples):
+                for j in range(i+1, num_samples):
+                    # 박스 IoU
+                    box_iou = calculate_iou(boxes[i], boxes[j])
+                    
+                    # 클래스 일치도
+                    class_i = torch.argmax(class_logits[i])
+                    class_j = torch.argmax(class_logits[j])
+                    class_agree = float(class_i == class_j)
+                    
+                    # 신뢰도 유사도
+                    conf_sim = 1.0 - abs(conf_scores[i] - conf_scores[j])
+                    
+                    agreement = (box_iou + class_agree + conf_sim) / 3.0
+                    pairwise_agreements.append(agreement)
+            
+            agreement_score = torch.mean(torch.stack(pairwise_agreements)) if pairwise_agreements else 0.0
+            
+            # 가중 평균으로 최종 신뢰도 점수 계산
+            weights = [0.3, 0.3, 0.2, 0.2]  # geometric, semantic, stability, agreement
+            final_score = (weights[0] * geometric_score + 
+                          weights[1] * semantic_score + 
+                          weights[2] * stability_score + 
+                          weights[3] * agreement_score)
+            
+            return {
+                'final_score': final_score.item(),
+                'geometric_score': geometric_score.item(),
+                'semantic_score': semantic_score.item(), 
+                'stability_score': stability_score.item(),
+                'agreement_score': agreement_score.item() if isinstance(agreement_score, torch.Tensor) else agreement_score
+            }
+        
+        # 모든 detection에 대해 신뢰도 평가
+        num_samples, batch, N, _ = all_predictions.shape
+        reliable_labels = []
+        
+        for batch_idx in range(batch):
+            for det_idx in range(N):
+                mc_samples = all_predictions[:, batch_idx, det_idx, :]
+                
+                # 기본 신뢰도 체크
+                mean_conf = torch.mean(torch.sigmoid(mc_samples[:, 4]))
+                if mean_conf < 0.3:
+                    continue
+                
+                # 종합 신뢰도 점수 계산
+                reliability_scores = calculate_reliability_score(mc_samples)
+                
+                if reliability_scores['final_score'] > reliability_threshold:
+                    # 최종 예측값 계산
+                    mean_box = torch.mean(mc_samples[:, :4], dim=0)
+                    mean_class_logits = torch.mean(mc_samples[:, 5:], dim=0)
+                    predicted_class = torch.argmax(mean_class_logits)
+                    
+                    reliable_labels.append({
+                        'batch_idx': batch_idx,
+                        'det_idx': det_idx,
+                        'box': mean_box,
+                        'class': predicted_class.item(),
+                        'confidence': mean_conf.item(),
+                        'reliability_scores': reliability_scores,
+                        'quality_tier': 'high' if reliability_scores['final_score'] > 0.9 else 'medium'
+                    })
+        
+        return reliable_labels
+    
+    def predict_with_uncertainty(
+        self,
+        image: Union[str, torch.Tensor],
+        device: Optional[str] = None,
+        save_predictions: bool = True,
+        reliability_threshold: Optional[float] = None,
+        config: Optional[dict] = None
+    ) -> Dict[str, Any]:
+        """다층 신뢰도 평가 시스템을 적용한 불확실성 예측 (V5 통합)
+        
+        Args:
+            image: 입력 이미지
+            device: 디바이스
+            save_predictions: 예측 저장 여부
+            reliability_threshold: 신뢰도 임계값 (None이면 config에서 읽기)
+            config: 설정 딕셔너리 (reliability_threshold 읽기용)
+        
+        Returns:
+            다층 신뢰도 평가가 적용된 예측 결과
+        """
+        # reliability_threshold 설정
+        if reliability_threshold is None:
+            if config is not None:
+                reliability_threshold = config.get('training', {}).get(
+                    'semi_supervised', {}
+                ).get('uncertainty', {}).get('reliability_threshold', 0.8)
+            else:
+                reliability_threshold = 0.8  # 기본값
+        # 기존 predict_with_uncertainty_legacy 호출
+        base_result = self.predict_with_uncertainty_legacy(image, device, save_predictions=False)
+        
+        if base_result is None:
+            return None
+        
+        # MC Dropout 다시 수행하여 all_predictions 얻기
+        if isinstance(image, str):
+            pass  # 이미지 로드 로직 필요
+        elif isinstance(image, torch.Tensor):
+            # 모델이 있는 디바이스 자동 감지
+            try:
+                # DDP 모델인 경우 module 속성 사용
+                if hasattr(self.model, 'module'):
+                    model_device = next(self.model.module.parameters()).device
+                else:
+                    model_device = next(self.model.parameters()).device
+                
+                if device is None:
+                    device = model_device
+                elif isinstance(device, str) and device != str(model_device):
+                    print(f"⚠️  Device mismatch: model on {model_device}, requested {device}")
+                    device = model_device  # 모델 디바이스로 강제 설정
+                
+                image = image.to(device)
+            except Exception as e:
+                print(f"❌ Device setup error: {e}")
+                # 이미지가 이미 있는 디바이스 사용
+                device = image.device
+                print(f"🔄 Using image device: {device}")
+        
+        predictions = []
+        self.model.train()  # MC Dropout 활성화
+        
+        try:
+            for _ in range(self.num_samples):
+                # 안전한 모델 호출 (DDP/DataParallel 지원)
+                try:
+                    # 모델과 이미지가 같은 디바이스에 있는지 확인
+                    if hasattr(self.model, 'module'):
+                        # DDP 또는 DataParallel 모델
+                        model_device = next(self.model.module.parameters()).device
+                    else:
+                        model_device = next(self.model.parameters()).device
+                    
+                    # 이미지를 모델 디바이스로 이동
+                    if image.device != model_device:
+                        print(f"🔄 Moving image from {image.device} to model device {model_device}")
+                        image = image.to(model_device)
+                    
+                    # 모델 호출
+                    pred_output = self.model(image)
+                    
+                except RuntimeError as device_error:
+                    if "device" in str(device_error).lower():
+                        print(f"🚨 Device error in MC Dropout v2: {device_error}")
+                        # 이미지 디바이스로 모델을 이동시도 (위험하지만 최후 수단)
+                        try:
+                            print(f"🔄 Moving model to image device: {image.device}")
+                            self.model = self.model.to(image.device)
+                            pred_output = self.model(image)
+                        except Exception as move_error:
+                            print(f"❌ Failed to move model: {move_error}")
+                            raise device_error
+                    else:
+                        raise device_error
+                
+                if isinstance(pred_output, dict):
+                    pred = pred_output['predictions']
+                else:
+                    pred = pred_output
+                
+                # 예측 처리 (기존 로직과 동일)
+                processed_predictions = []
+                if isinstance(pred, (list, tuple)):
+                    batch_pred = []
+                    expected_classes = None
+                    
+                    for p in pred:
+                        current_classes = p.shape[-1] - 5
+                        
+                        if expected_classes is None:
+                            expected_classes = current_classes
+                        
+                        if current_classes != expected_classes:
+                            continue
+                        
+                        reshaped = p.view(p.shape[0], -1, p.shape[-1])
+                        batch_pred.append(reshaped)
+                    
+                    if batch_pred:
+                        pred = torch.cat(batch_pred, dim=1)
+                    else:
+                        if expected_classes is not None:
+                            pred = torch.zeros(p.shape[0], 0, 5 + expected_classes).to(p.device)
+                        else:
+                            pred = torch.zeros(1, 0, 96).to(p.device)
+                
+                predictions.append(pred)
+            
+            # all_predictions 생성
+            all_predictions = torch.stack(predictions)  # (num_samples, batch, N, 5+num_classes)
+            
+            # V5 신뢰도 평가 시스템 적용
+            reliable_labels = self.generate_reliable_pseudo_labels(
+                all_predictions, reliability_threshold
+            )
+            
+            # 기존 결과에 V5 결과 추가
+            enhanced_results = []
+            for batch_idx, batch_result in enumerate(base_result):
+                # 해당 배치의 신뢰도 라벨 필터링
+                batch_reliable_labels = [
+                    label for label in reliable_labels 
+                    if label['batch_idx'] == batch_idx
+                ]
+                
+                # 신뢰도 기반 필터링된 결과 생성
+                if batch_reliable_labels:
+                    filtered_boxes = torch.stack([label['box'] for label in batch_reliable_labels])
+                    filtered_scores = torch.tensor([label['confidence'] for label in batch_reliable_labels])
+                    filtered_classes = torch.tensor([label['class'] for label in batch_reliable_labels])
+                    
+                    enhanced_result = {
+                        'boxes': filtered_boxes,
+                        'scores': filtered_scores,
+                        'labels': filtered_classes,
+                        'reliable_labels': batch_reliable_labels,
+                        'reliability_stats': {
+                            'total_detections': len(batch_reliable_labels),
+                            'high_quality': len([l for l in batch_reliable_labels if l['quality_tier'] == 'high']),
+                            'medium_quality': len([l for l in batch_reliable_labels if l['quality_tier'] == 'medium']),
+                            'avg_final_score': sum([l['reliability_scores']['final_score'] for l in batch_reliable_labels]) / len(batch_reliable_labels) if batch_reliable_labels else 0.0
+                        }
+                    }
+                else:
+                    # 신뢰도 기준을 통과한 라벨이 없는 경우
+                    enhanced_result = {
+                        'boxes': torch.zeros((0, 4)),
+                        'scores': torch.zeros(0),
+                        'labels': torch.zeros(0, dtype=torch.long),
+                        'reliable_labels': [],
+                        'reliability_stats': {
+                            'total_detections': 0,
+                            'high_quality': 0,
+                            'medium_quality': 0,
+                            'avg_final_score': 0.0
+                        }
+                    }
+                
+                enhanced_results.append(enhanced_result)
+            
+            # 예측 히스토리 저장 (제한적)
+            if save_predictions and len(self.uncertainty_history) < 10:
+                self.uncertainty_history.append(enhanced_results)
+            
+            return enhanced_results
+            
+        except Exception as e:
+            print(f"Error in predict_with_uncertainty_v5: {str(e)}")
+            return base_result 
 
 class MCLoss(nn.Module):
     """
@@ -1224,3 +1602,5 @@ class MCLoss(nn.Module):
                 'epistemic_aleatoric_separation': separation_ratio,
                 'total_epistemic_uncertainty': epistemic_var
             } 
+
+ 
