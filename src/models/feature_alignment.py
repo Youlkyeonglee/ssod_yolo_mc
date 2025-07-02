@@ -9,7 +9,7 @@ class FeatureAlignmentModule(nn.Module):
         self.transform = nn.Sequential(
             nn.Conv2d(student_channels, teacher_channels, kernel_size=1),
             nn.BatchNorm2d(teacher_channels),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=False)  # inplace=False로 변경하여 autograd 호환성 확보
         )
         
     def forward(self, student_features, teacher_features):

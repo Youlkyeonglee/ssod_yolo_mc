@@ -109,8 +109,17 @@ def update_pseudo_labels(model, unlabeled_loader, detector, conf_threshold, devi
     
     print(f"🔍 Teacher MC Dropout Pseudo Label 생성 시작 (MC samples: {num_mc_samples})")
     
+    import time
+    start_time = time.time()
+    timeout_seconds = 60  # 60초 타임아웃
+    
     with torch.no_grad():
         for batch_idx, batch in enumerate(unlabeled_loader):
+            # 타임아웃 체크
+            if time.time() - start_time > timeout_seconds:
+                print(f"⚠️  Pseudo label generation timeout after {timeout_seconds}s")
+                break
+                
             if batch_idx >= 10:  # 테스트용으로 제한
                 break
                 
@@ -136,6 +145,8 @@ def update_pseudo_labels(model, unlabeled_loader, detector, conf_threshold, devi
                     # predict_with_uncertainty 함수가 다층 신뢰도 평가로 고품질 pseudo label 생성
                     # DDP 지원: 디바이스 정보 명확하게 전달
                     actual_device = weak_images.device
+                    print(f"  📊 Processing batch {batch_idx+1}, device: {actual_device}")
+                    
                     mc_result = detector.predict_with_uncertainty(
                         weak_images, 
                         device=str(actual_device), 
@@ -163,39 +174,40 @@ def update_pseudo_labels(model, unlabeled_loader, detector, conf_threshold, devi
                                     result = mc_results[img_idx]
                                     if len(result.get('boxes', [])) > 0:
                                         img_mc_detections.append(result)
-                            
-                            # MC Dropout predict_with_uncertainty에서 이미 고품질 pseudo label을 생성했으므로
-                            # 중복 필터링 없이 직접 사용
-                            if len(img_mc_detections) >= 1:  
-                                # predict_with_uncertainty에서 이미 다층 신뢰도 평가를 통해 필터링된 결과 사용
-                                result = img_mc_detections[0]  # 첫 번째 (유일한) MC 결과 사용
-                                
-                                # 이미 필터링된 고품질 detection이 있는지 확인
-                                if len(result.get('boxes', [])) > 0:
-                                    # YOLO 형식으로 변환 [class_id, x, y, w, h]
-                                    boxes = result['boxes']
-                                    labels = result['labels']
                                     
-                                    yolo_detections = []
-                                    for i in range(len(boxes)):
-                                        yolo_detection = torch.zeros(5)
-                                        yolo_detection[0] = labels[i].float()  # class_id
-                                        yolo_detection[1:5] = boxes[i]  # x, y, w, h
-                                        yolo_detections.append(yolo_detection)
-                            
-                                    if yolo_detections:
-                                        consistent_detections = torch.stack(yolo_detections)
+                                    # MC Dropout predict_with_uncertainty에서 이미 고품질 pseudo label을 생성했으므로
+                                    # 중복 필터링 없이 직접 사용
+                                    
+                                    if len(img_mc_detections) >= 1:
+                                        # predict_with_uncertainty에서 이미 다층 신뢰도 평가를 통해 필터링된 결과 사용
+                                        result = img_mc_detections[0]  # 첫 번째 (유일한) MC 결과 사용
                                         
-                                    high_quality_pseudo_labels.append({
-                                        'boxes': consistent_detections,
-                                        'image_path': batch.get('paths', [''])[img_idx] if 'paths' in batch and img_idx < len(batch.get('paths', [])) else '',
-                                        'uncertainty_stats': {
-                                            'mc_samples': detector.num_samples,  # 내부 MC 샘플 수
-                                                'detections_count': len(consistent_detections),
-                                                'reliability_score': result.get('reliability_score', 0.0),  # V5 신뢰도 점수
-                                                'quality_grade': result.get('quality_grade', 'Unknown')  # V5 품질 등급
-                                        }
-                                    })
+                                        # 이미 필터링된 고품질 detection이 있는지 확인
+                                        if len(result.get('boxes', [])) > 0:
+                                            # YOLO 형식으로 변환 [class_id, x, y, w, h]
+                                            boxes = result['boxes']
+                                            labels = result['labels']
+                                            
+                                            yolo_detections = []
+                                            for i in range(len(boxes)):
+                                                yolo_detection = torch.zeros(5)
+                                                yolo_detection[0] = labels[i].float()  # class_id
+                                                yolo_detection[1:5] = boxes[i]  # x, y, w, h
+                                                yolo_detections.append(yolo_detection)
+                                        
+                                            if yolo_detections:
+                                                consistent_detections = torch.stack(yolo_detections)
+                                                
+                                            high_quality_pseudo_labels.append({
+                                                'boxes': consistent_detections,
+                                                'image_path': batch.get('paths', [''])[img_idx] if 'paths' in batch and img_idx < len(batch.get('paths', [])) else '',
+                                                'uncertainty_stats': {
+                                                    'mc_samples': detector.num_samples,  # 내부 MC 샘플 수
+                                                        'detections_count': len(consistent_detections),
+                                                        'reliability_score': result.get('reliability_score', 0.0),  # V5 신뢰도 점수
+                                                        'quality_grade': result.get('quality_grade', 'Unknown')  # V5 품질 등급
+                                                }
+                                            })
                         
                         pseudo_labels.extend(high_quality_pseudo_labels)
                         
@@ -207,5 +219,6 @@ def update_pseudo_labels(model, unlabeled_loader, detector, conf_threshold, devi
                 print(f"❌ Error in Teacher MC Dropout pseudo label generation (batch {batch_idx}): {e}")
                 continue
     
-    print(f"✅ Teacher MC Dropout Pseudo Label 생성 완료: {len(pseudo_labels)} 고품질 pseudo labels")
+    total_time = time.time() - start_time
+    print(f"✅ Teacher MC Dropout Pseudo Label 생성 완료: {len(pseudo_labels)} 고품질 pseudo labels in {total_time:.2f}s")
     return pseudo_labels 

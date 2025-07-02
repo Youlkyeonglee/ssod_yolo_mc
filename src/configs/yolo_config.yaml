@@ -7,7 +7,7 @@ model:
   dropout:
     enabled: true
     rate: 0.1
-    num_samples: 10
+    num_samples: 5
   
   # 🎯 Feature Alignment 실험 설정
   feature_alignment:
@@ -93,7 +93,7 @@ data:
   batch_size: 16  # 배치 크기
   num_workers: 0  # DataLoader 멀티프로세싱 비활성화 (에러 방지)
   augment: true  # 데이터 증강 사용 여부
-  max_samples: 33  # 연구용: 적당한 규모 (빠른 실험을 위해 1000개, null은 전체 데이터 사용)
+  max_samples: null  # 테스트용: 빠른 실험을 위해 10개 샘플만 사용
   labeled_ratio: 10.0  # 레이블된 데이터 비율 (1, 2, 5, 10)
   seed: 1 # 데이터 분포 시드 (1,2,3,4,5)
   
@@ -124,7 +124,7 @@ data:
 
 training:
   # 학습 파라미터
-  epochs: 20  # 연구용: COCO에서 일반적으로 충분한 에포크 수
+  epochs: 20  # 테스트용: 빠른 실험을 위해 3 에포크만 실행
   mature_epoch: 5  # pseudo label 시작: 초기 supervised 학습 후 semi-supervised 전환
   batch_size: 16
   img_size: 640
@@ -198,24 +198,27 @@ training:
     consistency_temperature: 3.0            # Temperature scaling for softmax distributions
     bbox_consistency_weight: 1.0            # BBox coordinates consistency 가중치
     class_consistency_weight: 1.0           # Class logits consistency 가중치
+    
+    # 🎯 MC Dropout Consistency Loss 설정 (신규) - 임시 비활성화
+    mc_consistency_weight: 0.0              # MC Consistency Loss 가중치 (임시 비활성화)
+    mc_consistency_alpha: 1.0               # Pseudo label consistency weight
+    mc_consistency_beta: 0.5                # MC uncertainty regularization weight
+    mc_consistency_temperature: 1.0         # Temperature scaling for uncertainty
+    mc_uncertainty_threshold: 0.1           # 불확실성 임계값
+    mc_use_adaptive_weighting: true         # 적응적 가중치 사용 여부
     obj_consistency_weight: 1.0             # Objectness consistency 가중치
     
     # MC Dropout 설정
     uncertainty:
-      box_std_threshold: 0.1     # 박스 좌표 불확실성 임계값
-      entropy_threshold: 0.5     # 클래스 예측 불확실성 임계값
-      min_detections: 3         # 유효한 의사 레이블로 간주하기 위한 최소 탐지 횟수
+      box_std_threshold: 0.1          # bbox 표준편차/불확실성 임계값
+      entropy_threshold: 0.5          # 클래스 예측 불확실성/엔트로피 임계값
+      min_detections: 3              # 유효한 의사 레이블로 간주하기 위한 최소 탐지 횟수
+      confidence_threshold: 0.7       # 신뢰도 임계값
+      reliability_threshold: 0.5      # 다층 신뢰도 평가 임계값 (0.0-1.0)
     uncertainty_weight: 5.0           # pseudo label loss 가중치 (50.0에서 조정)
     uncertainty_alpha: 5.0            # 불확실성 기반 가중치 조정 (10.0에서 조정)
     consistency_weight: 0.1           # MC consistency loss 가중치
     num_mc_samples: 10                # MC Dropout 샘플링 횟수
-    
-    # 불확실성 필터링 임계값
-    uncertainty:
-      box_std_threshold: 0.1          # bbox 표준편차 임계값
-      entropy_threshold: 0.5          # 클래스 엔트로피 임계값
-      confidence_threshold: 0.7       # 신뢰도 임계값
-      reliability_threshold: 0.8      # 다층 신뢰도 평가 임계값 (0.0-1.0)
   
   # Feature Alignment 설정
   feature_alignment:

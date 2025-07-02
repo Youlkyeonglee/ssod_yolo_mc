@@ -27,7 +27,9 @@ from utils.pseudo_label_utils import (
 from utils.yolo_losses import (
     YOLOLossSupervised,
     DistributionalConsistencyLoss,
-    calculate_unlabeled_loss
+    calculate_unlabeled_loss,
+    MCDropoutConsistencyLoss,
+    create_mc_consistency_loss
 )
 import torchvision.transforms as transforms
 import yaml
@@ -42,7 +44,8 @@ from utils.distributed_utils import (
     setup_dataloader_for_distributed,
     is_main_process,
     get_world_size,
-    log_gpu_info
+    log_gpu_info,
+    distributed_main
 )
 
 def cleanup_gpu_memory():
@@ -227,6 +230,48 @@ def apply_cutout(img, n_holes=1, length=32):
     
     return img
 
+def _get_student_mc_predictions(student_model, strong_unlabeled_images, device, config):
+    """
+    Student 모델의 MC Dropout 예측을 안전하게 수행
+    
+    Args:
+        student_model: Student 모델
+        strong_unlabeled_images: Strong augmentation된 이미지
+        device: 디바이스
+        config: 설정
+    
+    Returns:
+        MC Dropout 예측 결과
+    """
+    try:
+        # 모델 상태 저장
+        original_training = student_model.model.training
+        
+        # MC Dropout을 위한 별도 모델 복사본 생성
+        with torch.no_grad():
+            # 모델을 eval 모드로 설정 (MC Dropout 활성화)
+            student_model.model.eval()
+            
+            # MC Dropout 예측 수행
+            mc_predictions = []
+            num_samples = min(5, config['model']['dropout'].get('num_samples', 10))
+            
+            for _ in range(num_samples):
+                # 각 MC 샘플에서 예측 수행
+                with torch.no_grad():
+                    pred = student_model.model(strong_unlabeled_images)
+                    mc_predictions.append(pred)
+            
+            # 모델 상태 복원
+            student_model.model.train(original_training)
+            
+            # 결과를 detector 형식으로 변환
+            return mc_predictions
+            
+    except Exception as e:
+        print(f"MC Dropout 예측 실패: {e}")
+        return None
+
 
 
 # denormalize_tensor, tensor_to_pil 함수들은 utils.pseudo_label_utils에서 임포트됨
@@ -247,6 +292,7 @@ def train_one_epoch(
     alignment_weight: float = 0.1  # Feature Alignment Loss 가중치
 ):
     """한 에포크 학습"""
+    torch.autograd.set_detect_anomaly(True)
     model.train()
     total_loss = torch.tensor(0.0, device=device, requires_grad=True)
     labeled_iter = iter(labeled_loader)
@@ -259,30 +305,14 @@ def train_one_epoch(
     box_std_threshold = config['training']['semi_supervised']['uncertainty']['box_std_threshold']
     entropy_threshold = config['training']['semi_supervised']['uncertainty']['entropy_threshold']
     
-    # 🎯 분포 기반 Consistency Loss 초기화
-    consistency_loss_fn = DistributionalConsistencyLoss(
-        loss_type=config['training']['semi_supervised']['consistency_loss_type'],
-        temperature=config['training']['semi_supervised']['consistency_temperature'],
-        bbox_consistency_weight=config['training']['semi_supervised']['bbox_consistency_weight'],
-        class_consistency_weight=config['training']['semi_supervised']['class_consistency_weight'],
-        obj_consistency_weight=config['training']['semi_supervised']['obj_consistency_weight']
+    # 🎯 MC Dropout Consistency Loss 초기화
+    mc_consistency_loss_fn = create_mc_consistency_loss(
+        alpha=config['training']['semi_supervised'].get('mc_consistency_alpha', 1.0),
+        beta=config['training']['semi_supervised'].get('mc_consistency_beta', 0.5),
+        temperature=config['training']['semi_supervised'].get('mc_consistency_temperature', 1.0),
+        uncertainty_threshold=config['training']['semi_supervised'].get('mc_uncertainty_threshold', 0.1),
+        use_adaptive_weighting=config['training']['semi_supervised'].get('mc_use_adaptive_weighting', True)
     ).to(device)
-    
-    # 의사 레이블 생성
-    pseudo_labels = []  # 기본값으로 빈 리스트 초기화
-    if epoch >= pseudo_label_start_epoch:
-        logger.info(f"🎯 Starting pseudo labeling at epoch {epoch+1} (threshold: {pseudo_label_start_epoch})")
-        pseudo_labels = update_pseudo_labels(
-            model=model,
-            unlabeled_loader=unlabeled_loader,
-            detector=detector,
-            conf_threshold=conf_threshold,
-            device=device,
-            config=config
-        )
-        logger.info(f"✅ Generated {len(pseudo_labels)} pseudo labels")
-    else:
-        logger.info(f"⏳ Pseudo labeling will start at epoch {pseudo_label_start_epoch+1} (current: {epoch+1})")
     
     # 학습 루프
     num_batches = min(len(labeled_loader), len(unlabeled_loader))
@@ -420,7 +450,7 @@ def train_one_epoch(
             labeled_loss = torch.tensor(0.0, device=device, requires_grad=True)
             loss_dict = {'labeled_loss': 0.0}
         
-        # Feature Alignment Loss 추가
+        # Feature Alignment Loss 추가 - 복사하여 inplace 방지
         if alignment_weight > 0.0:
             # DDP 지원
             if hasattr(model, 'module'):
@@ -433,14 +463,14 @@ def train_one_epoch(
             # alignment_loss가 None이거나 gradient가 없는 경우 처리
             if alignment_loss is not None and isinstance(alignment_loss, torch.Tensor):
                 if alignment_loss.requires_grad:
-                    labeled_loss = labeled_loss + alignment_weight * alignment_loss
-                    loss_dict['alignment_loss'] = alignment_loss.item()
-        
-
-        
+                    # 복사하여 inplace operation 방지
+                    safe_alignment_loss = alignment_loss.clone()
+                    labeled_loss = labeled_loss + alignment_weight * safe_alignment_loss
+                    loss_dict['alignment_loss'] = safe_alignment_loss.item()
+        else:
+            loss_dict['alignment_loss'] = 0.0
         # 레이블되지 않은 데이터 학습 (Teacher-Student MC Dropout 전략)
-        if epoch >= pseudo_label_start_epoch and pseudo_labels:
-            logger.info(f"🎯 Using pseudo labels for unlabeled data (epoch {epoch+1}, threshold: {pseudo_label_start_epoch})")
+        if epoch >= pseudo_label_start_epoch:
             try:
                 unlabeled_batch = next(iter(unlabeled_loader))
                 
@@ -457,75 +487,67 @@ def train_one_epoch(
                 
                 weak_unlabeled_images = torch.stack(weak_unlabeled_images).to(device)
                 
-                # Teacher MC Dropout 다중 예측
-                # === 개선된 단일 MC Dropout 호출 (다층 신뢰도 평가 시스템) ===
-                # predict_with_uncertainty 함수가 다층 신뢰도 평가로 고품질 pseudo label 생성
+                # === 매 배치마다 Teacher MC Dropout으로 Pseudo Labels 생성 ===
+                # predict_with_uncertainty 내부에서 이미 num_samples만큼 MC Dropout 수행
                 mc_result = detector.predict_with_uncertainty(
                     weak_unlabeled_images, 
                     device=device, 
                     config=config
                 )
                 
-                if mc_result:
-                    # 기존 코드와의 호환성을 위해 리스트로 래핑
-                    mc_results_list = [mc_result]
+                if mc_result:  # mc_result는 이미 list 형태 (여러 이미지의 결과)
+                    # 배치별 진행 상황 로깅 (첫 번째 배치에서만 상세 로그)
+                    if batch_idx == 0:
+                        logger.info(f"🎯 Epoch {epoch+1}: Pseudo labeling started (threshold: {pseudo_label_start_epoch})")
+                        print(f"  📊 MC Dropout completed: {len(mc_result)} image results")
                     
-                    print(f"  📊 MC Dropout completed: {len(mc_result)} image results with {detector.num_samples} internal samples each")
-                    
-                    if len(mc_results_list) >= 1:  # 최소 1개 결과 필요
                         # === MC Dropout 불확실성 기반 고품질 Pseudo Label 선별 ===
-                        
-                        # 각 detection에 대해 MC 샘플들의 분산 계산
+                    # mc_result 내부의 여러 predictions 값을 그대로 사용
                         high_quality_pseudo_labels = []
                         
                         for img_idx in range(len(weak_unlabeled_images)):
-                            # 해당 이미지의 모든 MC 샘플 수집
-                            img_mc_detections = []
-                            
-                            for mc_results in mc_results_list:
-                                if img_idx < len(mc_results):
-                                    result = mc_results[img_idx]
-                                    if len(result.get('boxes', [])) > 0:
-                                        img_mc_detections.append(result)
-                            
-                            # MC Dropout predict_with_uncertainty에서 이미 고품질 pseudo label을 생성했으므로
-                            # 중복 필터링 없이 직접 사용
-                            if len(img_mc_detections) >= 1:  
-                                # predict_with_uncertainty에서 이미 다층 신뢰도 평가를 통해 필터링된 결과 사용
-                                result = img_mc_detections[0]  # 첫 번째 (유일한) MC 결과 사용
+                            if img_idx < len(mc_result):
+                                result = mc_result[img_idx]
                                 
-                                # 이미 필터링된 고품질 detection이 있는지 확인
+                                # result 내부의 boxes, labels, scores 사용
                                 if len(result.get('boxes', [])) > 0:
-                                    # YOLO 형식으로 변환 [class_id, x, y, w, h]
                                     boxes = result['boxes']
                                     labels = result['labels']
+                                    scores = result['scores']
                                     
+                                    # YOLO 형식으로 변환 [class_id, x, y, w, h] - 복사하여 inplace 방지
                                     yolo_detections = []
                                     for i in range(len(boxes)):
-                                        yolo_detection = torch.zeros(5)
-                                        yolo_detection[0] = labels[i].float()  # class_id
-                                        yolo_detection[1:5] = boxes[i]  # x, y, w, h
+                                        yolo_detection = torch.zeros(5, device=boxes[i].device)
+                                        yolo_detection[0] = labels[i].float().clone()  # class_id 복사
+                                        yolo_detection[1:5] = boxes[i].clone()  # x, y, w, h 복사
                                         yolo_detections.append(yolo_detection)
-                            
+                                
                                     if yolo_detections:
-                                        consistent_detections = torch.stack(yolo_detections)
+                                        consistent_detections = torch.stack(yolo_detections).clone()  # 최종 복사
                                         
-                                    high_quality_pseudo_labels.append({
-                                        'boxes': consistent_detections,
-                                        'image_path': unlabeled_batch.get('paths', [''])[img_idx] if 'paths' in unlabeled_batch and img_idx < len(unlabeled_batch.get('paths', [])) else '',
-                                        'uncertainty_stats': {
-                                            'mc_samples': detector.num_samples,  # 내부 MC 샘플 수
+                                        high_quality_pseudo_labels.append({
+                                            'boxes': consistent_detections,
+                                            'image_path': unlabeled_batch.get('paths', [''])[img_idx] if 'paths' in unlabeled_batch and img_idx < len(unlabeled_batch.get('paths', [])) else '',
+                                            'uncertainty_stats': {
+                                                'mc_samples': detector.num_samples,  # detector에서 설정된 MC 샘플 수
                                                 'detections_count': len(consistent_detections),
-                                                'reliability_score': result.get('reliability_score', 0.0),  # V5 신뢰도 점수
-                                                'quality_grade': result.get('quality_grade', 'Unknown')  # V5 품질 등급
-                                        }
-                                    })
-                    
-                    pseudo_labels.extend(high_quality_pseudo_labels)
+                                                'reliability_score': scores.mean().item() if hasattr(scores, 'mean') else 0.0,
+                                                'quality_grade': 'high'  # 이미 불확실성 필터링이 적용됨
+                                            }
+                                        })
                     
                     if high_quality_pseudo_labels:
                         total_detections = sum(len(pl['boxes']) for pl in high_quality_pseudo_labels)
-                        print(f"  📊 Current batch: {len(high_quality_pseudo_labels)} images, {total_detections} high-quality detections")
+                        if batch_idx == 0:  # 첫 번째 배치에서만 상세 로그
+                            print(f"  📊 Current batch: {len(high_quality_pseudo_labels)} images, {total_detections} high-quality detections")
+                        
+                        # 진행률 표시에 pseudo labels 정보 추가
+                        if 'postfix_dict' in locals():
+                            None['pseudo'] = f"{total_detections}"
+                    else:
+                        if batch_idx == 0:  # 첫 번째 배치에서만 로그
+                            print("  ⚠️  No high-quality pseudo labels generated in this batch")
                     
                     # === Student 모델로 Strong Augmentation된 unlabeled 데이터 예측 ===
                     strong_transform = get_strong_augmentation(config['data']['img_size'])
@@ -542,6 +564,7 @@ def train_one_epoch(
                     
                     # === Unlabeled Data Loss 계산 ===
                     unlabeled_data_loss = torch.tensor(0.0, device=device, requires_grad=True)
+                    consistency_weight = config['training']['semi_supervised']['consistency_weight']
                     
                     # Unlabeled Data Loss 계산 (단순화된 구조)
                     if high_quality_pseudo_labels:
@@ -554,61 +577,94 @@ def train_one_epoch(
                             config=config,
                             logger=logger
                         )
+                        
+                        # consistency_weight 적용
+                        unlabeled_data_loss = unlabeled_data_loss * consistency_weight
+                        
                         # Loss dictionary 업데이트
                         if hasattr(unlabeled_data_loss, 'item'):
                             loss_dict['unlabeled_data_loss'] = unlabeled_data_loss.item()
                         else:
                             loss_dict['unlabeled_data_loss'] = 0.0
-                    else:
-                        loss_dict['unlabeled_data_loss'] = 0.0
-                else:
-                    unlabeled_data_loss = torch.tensor(0.0, device=device, requires_grad=True)
-                    loss_dict['unlabeled_data_loss'] = 0.0
-                    
-                    # === 🎯 분포 기반 Strong-Weak Consistency Loss (Dual-View) ===
-                    consistency_loss = torch.tensor(0.0, device=device, requires_grad=True)
-                    consistency_weight = config['training']['semi_supervised']['consistency_weight']
-                    
-                    if consistency_weight > 0.0 and len(high_quality_pseudo_labels) > 0:
-                        try:
-                            # Student 모델로 Weak augmentation 이미지도 예측
-                            student_weak_predictions = student_model.model(weak_unlabeled_images)
-                            student_strong_predictions = student_model.model(strong_unlabeled_images)
-                            
-                            # 분포 기반 Strong-Weak augmentation 간 일관성 loss
-                            if isinstance(student_weak_predictions, (list, tuple)) and isinstance(student_strong_predictions, (list, tuple)):
-                                weak_pred = student_weak_predictions[0] if len(student_weak_predictions) > 0 else None
-                                strong_pred = student_strong_predictions[0] if len(student_strong_predictions) > 0 else None
+                        
+                        # === 🎯 MC Dropout Consistency Loss 계산 ===
+                        mc_consistency_loss = torch.tensor(0.0, device=device, requires_grad=True)
+                        mc_consistency_weight = config['training']['semi_supervised'].get('mc_consistency_weight', 0.3)
+                        
+                        if mc_consistency_weight > 0.0:
+                            try:
+                                # MC Dropout 예측을 별도 함수로 분리하여 inplace operation 방지
+                                student_mc_result = _get_student_mc_predictions(
+                                    student_model, strong_unlabeled_images, device, config
+                                )
                                 
-                                if weak_pred is not None and strong_pred is not None:
-                                    # 분포 기반 consistency loss 계산
-                                    distributional_loss_result = consistency_loss_fn(
-                                        strong_predictions=strong_pred, 
-                                        weak_predictions=weak_pred.detach(),
+                                # MC Consistency Loss 계산
+                                if student_mc_result and len(student_mc_result) > 0:
+                                    # 텐서 복사로 inplace operation 방지
+                                    safe_high_quality_pseudo_labels = []
+                                    for pseudo_label in high_quality_pseudo_labels:
+                                        safe_pseudo_label = {
+                                            'boxes': pseudo_label['boxes'].clone(),
+                                            'image_path': pseudo_label.get('image_path', ''),
+                                            'uncertainty_stats': pseudo_label.get('uncertainty_stats', {})
+                                        }
+                                        safe_high_quality_pseudo_labels.append(safe_pseudo_label)
+                                    
+                                    # MC 예측 결과를 안전하게 처리 - 추가 안전장치
+                                    safe_mc_predictions = []
+                                    for pred in student_mc_result:
+                                        if isinstance(pred, torch.Tensor):
+                                            safe_mc_predictions.append(pred.clone())
+                                        else:
+                                            # dict 형태인 경우 처리
+                                            safe_pred = {}
+                                            for key, value in pred.items():
+                                                if isinstance(value, torch.Tensor):
+                                                    safe_pred[key] = value.clone()
+                                                else:
+                                                    safe_pred[key] = value
+                                            safe_mc_predictions.append(safe_pred)
+                                    
+                                    mc_consistency_result = mc_consistency_loss_fn(
+                                        student_mc_predictions=safe_mc_predictions,  # 복사된 MC 예측 사용
+                                        high_quality_pseudo_labels=safe_high_quality_pseudo_labels,
+                                        strong_unlabeled_images=strong_unlabeled_images.clone(),
                                         return_components=True
                                     )
                                     
-                                    consistency_loss = distributional_loss_result['total'] * consistency_weight
+                                    mc_consistency_loss = mc_consistency_result['total'] * mc_consistency_weight
                                     
                                     # 세부 손실 컴포넌트 로깅
-                                    loss_dict['consistency_loss'] = consistency_loss.item()
-                                    loss_dict['bbox_consistency'] = distributional_loss_result['components']['bbox_consistency'].item()
-                                    loss_dict['class_consistency'] = distributional_loss_result['components']['class_consistency'].item()
-                                    loss_dict['obj_consistency'] = distributional_loss_result['components']['obj_consistency'].item()
+                                    loss_dict['mc_consistency_loss'] = mc_consistency_loss.item()
+                                    loss_dict['mc_pseudo_consistency'] = mc_consistency_result['pseudo_consistency'].item()
+                                    loss_dict['mc_uncertainty_reg'] = mc_consistency_result['mc_uncertainty'].item()
                                     
-                                    if 'entropy_reg' in distributional_loss_result['components']:
-                                        loss_dict['entropy_reg'] = distributional_loss_result['components']['entropy_reg'].item()
-                        
-                        except Exception as e:
-                            logger.debug(f"Distributional Consistency Loss calculation failed: {e}")
-                            consistency_loss = torch.tensor(0.0, device=device, requires_grad=True)
-                            loss_dict['consistency_loss'] = 0.0
-                            loss_dict['bbox_consistency'] = 0.0
-                            loss_dict['class_consistency'] = 0.0
-                            loss_dict['obj_consistency'] = 0.0
+                                    if 'adaptive_weights' in mc_consistency_result:
+                                        loss_dict['mc_alpha'] = mc_consistency_result['adaptive_weights']['alpha']
+                                        loss_dict['mc_beta'] = mc_consistency_result['adaptive_weights']['beta']
+                            
+                            except Exception as e:
+                                logger.debug(f"MC Dropout Consistency Loss calculation failed: {e}")
+                                mc_consistency_loss = torch.tensor(0.0, device=device, requires_grad=True)
+                                loss_dict['mc_consistency_loss'] = 0.0
+                                loss_dict['mc_pseudo_consistency'] = 0.0
+                                loss_dict['mc_uncertainty_reg'] = 0.0
+                        else:
+                            loss_dict['mc_consistency_loss'] = 0.0
+                            loss_dict['mc_pseudo_consistency'] = 0.0
+                            loss_dict['mc_uncertainty_reg'] = 0.0
+                    else:
+                        loss_dict['unlabeled_data_loss'] = 0.0
+                        loss_dict['mc_consistency_loss'] = 0.0
+                        loss_dict['mc_pseudo_consistency'] = 0.0
+                        loss_dict['mc_uncertainty_reg'] = 0.0
                     
                     # === 총 Unlabeled Loss 계산 ===
-                    unlabeled_loss = unlabeled_data_loss + consistency_loss
+                    # mc_consistency_loss가 정의되지 않은 경우를 대비한 안전장치
+                    if 'mc_consistency_loss' not in locals():
+                        mc_consistency_loss = torch.tensor(0.0, device=device, requires_grad=True)
+                    
+                    unlabeled_loss = unlabeled_data_loss + mc_consistency_loss
                     total_loss = labeled_loss + unlabeled_loss
                     
                     # Unlabeled Loss 통계 업데이트
@@ -619,8 +675,8 @@ def train_one_epoch(
                 logger.info(f"Error in Teacher-Student MC Dropout calculation: {e}")
                 total_loss = labeled_loss
         else:
-            if epoch >= pseudo_label_start_epoch:
-                logger.info(f"⚠️  Pseudo labels not available for unlabeled data (epoch {epoch+1})")
+            if epoch >= pseudo_label_start_epoch and batch_idx == 0:  # 첫 번째 배치에서만 로그
+                logger.info(f"⏳ Pseudo labeling will start at epoch {pseudo_label_start_epoch+1} (current: {epoch+1})")
             total_loss = labeled_loss
         
         # total_loss 안전장치 - 초기 텐서 상태인 경우 labeled_loss로 설정
@@ -633,8 +689,32 @@ def train_one_epoch(
         
         # gradient 체크 및 안전장치
         if total_loss.requires_grad:
+            # Inplace operation 방지를 위한 추가 검증
+            # try:
+            # total_loss가 유효한지 확인
+            if torch.isnan(total_loss) or torch.isinf(total_loss):
+                logger.warning(f"🚨 Invalid loss detected: {total_loss.item()}")
+                total_loss = labeled_loss  # labeled_loss로 대체
+            
             total_loss.backward()
+            
+            # Gradient clipping 적용
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
+            
             optimizer.step()
+                
+            # except RuntimeError as e:
+            #     if "inplace operation" in str(e):
+            #         logger.error(f"🚨 Inplace operation error: {e}")
+            #         logger.error("Loss computation에서 inplace operation이 감지되었습니다.")
+            #         # 안전한 fallback
+            #         total_loss = labeled_loss
+            #         optimizer.zero_grad()
+            #         total_loss.backward()
+            #         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
+            #         optimizer.step()
+            #     else:
+            #         raise e
             
             #  EMA Teacher 업데이트 (매 배치마다) - DDP 지원
             model_for_ema = model.module if hasattr(model, 'module') else model
@@ -667,44 +747,44 @@ def train_one_epoch(
         # 진행률 업데이트 (배치마다)
         desc = f"Epoch {epoch+1}/{config['training']['epochs']} | Batch {batch_idx+1}/{num_batches}"
         if 'loss_dict' in locals() and loss_dict:
-                desc += f" | Loss: {synchronized_loss.item():.4f}"
-                
-                # 주요 손실만 표시하여 가독성 향상
-                main_losses = []
-                if 'labeled_box_loss' in loss_dict:
-                    main_losses.append(f"Box: {loss_dict['labeled_box_loss']:.3f}")
-                if 'labeled_cls_loss' in loss_dict:
-                    main_losses.append(f"Cls: {loss_dict['labeled_cls_loss']:.3f}")
-                if 'labeled_obj_loss' in loss_dict:
-                    main_losses.append(f"Obj: {loss_dict['labeled_obj_loss']:.3f}")
-
-                if 'alignment_loss' in loss_dict:
-                    main_losses.append(f"Align: {loss_dict['alignment_loss']:.3f}")
-                
-                if main_losses and len(' | '.join(main_losses)) < 60:  # 너무 길지 않을 때만 표시
-                    desc += f" | {' | '.join(main_losses)}"
+            desc += f" | Loss: {synchronized_loss.item():.4f}"
             
-                pbar.set_description(desc)
-                
-                # 추가 메트릭을 postfix로 표시
-                postfix_dict = {}
-        if 'loss_dict' in locals() and loss_dict:
+            # 주요 손실만 표시하여 가독성 향상
+            main_losses = []
+            if 'labeled_box_loss' in loss_dict:
+                main_losses.append(f"Box: {loss_dict['labeled_box_loss']:.3f}")
+            if 'labeled_cls_loss' in loss_dict:
+                main_losses.append(f"Cls: {loss_dict['labeled_cls_loss']:.3f}")
+            if 'labeled_obj_loss' in loss_dict:
+                main_losses.append(f"Obj: {loss_dict['labeled_obj_loss']:.3f}")
+
+            if 'alignment_loss' in loss_dict:
+                main_losses.append(f"Align: {loss_dict['alignment_loss']:.3f}")
+            
+            if main_losses and len(' | '.join(main_losses)) < 60:  # 너무 길지 않을 때만 표시
+                desc += f" | {' | '.join(main_losses)}"
+        
+            pbar.set_description(desc)
+            
+            # 추가 메트릭을 postfix로 표시
+            postfix_dict = {}
+            if 'loss_dict' in locals() and loss_dict:
                 if 'unlabeled_loss' in loss_dict and loss_dict['unlabeled_loss'] > 0:
                     postfix_dict['unlabeled'] = f"{loss_dict['unlabeled_loss']:.3f}"
-                if 'consistency_loss' in loss_dict and loss_dict['consistency_loss'] > 0:
-                    postfix_dict['consistency'] = f"{loss_dict['consistency_loss']:.3f}"
-                
-                if postfix_dict:
-                    pbar.set_postfix(postfix_dict)
+                if 'mc_consistency_loss' in loss_dict and loss_dict['mc_consistency_loss'] > 0:
+                    postfix_dict['mc_cons'] = f"{loss_dict['mc_consistency_loss']:.3f}"
+                    
+                    if postfix_dict:
+                        pbar.set_postfix(postfix_dict)
         
         # 진행률 업데이트
         pbar.update(1)
 
     
     # epoch 완료 메시지 출력
-        final_desc = f"Epoch {epoch+1}/{config['training']['epochs']} ✅ Completed"
-        pbar.set_description(final_desc)
-        pbar.refresh()
+    final_desc = f"Epoch {epoch+1}/{config['training']['epochs']} ✅ Completed"
+    pbar.set_description(final_desc)
+    pbar.refresh()
     
     # 🔬 MC Dropout 품질 모니터링 (매 에포크마다) - 임시 비활성화 (hang 방지)
     if is_main_process():
@@ -982,7 +1062,7 @@ def main():
                     best_map_95 = checkpoint['best_mAP50_95']
                 elif 'best_map_95' in checkpoint:
                     best_map_95 = checkpoint['best_map_95']
-            except:
+            except Exception:
                 best_map_95 = 0.0  # 로드 실패 시 기본값
             logger.info(f"Resumed from checkpoint: {args.resume}")
             logger.info(f"Best mAP@0.5: {best_map:.4f}, Best mAP@0.5:0.95: {best_map_95:.4f}")
@@ -1257,6 +1337,7 @@ def main():
                 logger.info("-" * 60)  # 구분선 추가
     
     # 최종 평가 수행 (메인 프로세스만)
+    final_mAP50, final_mAP50_95 = 0.0, 0.0  # 기본값 설정
     if is_main_process():
         logger.info("Performing final evaluation...")
         final_mAP50, final_mAP50_95 = evaluate_model_wrapper(
@@ -1268,15 +1349,17 @@ def main():
             val_data_path=args.val_data_path
         )
     
-    # 최종 메트릭 기록
-    metrics['mAP50'].append(final_mAP50)
-    metrics['mAP50-95'].append(final_mAP50_95)
+    # 최종 메트릭 기록 (메인 프로세스만)
+    if is_main_process():
+        metrics['mAP50'].append(final_mAP50)
+        metrics['mAP50-95'].append(final_mAP50_95)
     
-    # 최종 메트릭 시각화
-    plot_metrics(
-        metrics=metrics,
-        save_path=run_dir / 'final_metrics.png'
-    )
+    # 최종 메트릭 시각화 (메인 프로세스만)
+    if is_main_process():
+        plot_metrics(
+            metrics=metrics,
+            save_path=run_dir / 'final_metrics.png'
+        )
     
     # 최종 결과 로깅
     logger.info(
@@ -1300,42 +1383,15 @@ def main():
         best_map=final_mAP50
     )
 
-# distributed_main과 distributed_worker 함수들은 utils.distributed_utils로 이동됨
-
-
-# main_distributed 함수는 utils.distributed_utils로 이동됨
-
-
-def main_distributed(args, config, use_distributed=False):
-    """분산 학습용 메인 함수 - train.py의 main() 함수를 분산 학습용으로 감싼 함수"""
-    # args와 config가 이미 전달되었으므로, 전역으로 설정하여 main()에서 사용할 수 있도록 함
-    import sys
-    
-    # 원래 sys.argv를 백업
-    original_argv = sys.argv[:]
-    
-    try:
-        # 분산 학습 설정을 sys.argv에 반영 (parse_args가 이를 읽을 수 있도록)
-        sys.argv = ['train.py']  # 기본 스크립트 이름
-        if hasattr(args, 'config'):
-            sys.argv.extend(['--config', args.config])
-        if hasattr(args, 'device') and args.device:
-            sys.argv.extend(['--device', args.device])
-        
-        # main() 함수 실행 (분산 학습 환경에서)
-        main()
-
-    finally:
-        # sys.argv 복원
-        sys.argv = original_argv
-
 
 def run_distributed_training():
     """분산 학습 실행 함수"""
-    from utils.distributed_utils import distributed_main
-    
-    # 분산 학습 메인 함수 실행 (main_distributed 함수를 전달)
-    distributed_main(parse_args, main_distributed)
+    # distributed_main 함수는 main_func를 인자 없이 호출하므로
+    # main_distributed 대신 main 함수를 직접 전달
+    distributed_main(parse_args, main)
+
+
+
 
 
 if __name__ == "__main__":

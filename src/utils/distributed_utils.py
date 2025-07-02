@@ -441,6 +441,18 @@ def distributed_worker(rank: int, world_size: int, gpu_ids: list, config: dict, 
         import traceback
         print(f"워커 {rank} 상세 오류:")
         traceback.print_exc()
+        
+        # Inplace operation 오류인 경우 특별 처리
+        if "inplace operation" in str(e):
+            print(f"🚨 워커 {rank}: Inplace operation 오류 감지 - 안전한 종료 시도")
+            try:
+                # GPU 메모리 정리
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                cleanup_distributed()
+            except Exception as cleanup_error:
+                print(f"⚠️  워커 {rank} 정리 중 추가 오류: {cleanup_error}")
+        
         raise e
     finally:
         print(f"🧹 워커 {rank}: 정리 중...")

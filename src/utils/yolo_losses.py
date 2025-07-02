@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from typing import Tuple, Optional, List, Union
+from typing import Tuple, Optional, List, Union, Dict
 
 
 def box_iou(box1: torch.Tensor, box2: torch.Tensor, eps: float = 1e-7) -> torch.Tensor:
@@ -260,7 +260,7 @@ class YOLOLoss(nn.Module):
         target_cls = targets[:, 1].long()   # [num_targets] - class ids
         target_batch_idx = targets[:, 0].long()  # [num_targets] - batch indices
         
-        # Positive 샘플 할당 (간단한 버전)
+        # Positive 샘플 할당 (간단한 버전) - 복사하여 inplace 방지
         # TODO: 더 정교한 target assignment 구현 필요
         pos_mask = torch.zeros(batch_size, num_predictions, dtype=torch.bool, device=device)
         
@@ -270,8 +270,8 @@ class YOLOLoss(nn.Module):
                 batch_idx = target_batch_idx[i]
                 if 0 <= batch_idx < batch_size:
                     # IoU 기반 할당 또는 center distance 기반 할당
-                    target_box = target_boxes[i:i+1]  # [1, 4]
-                    batch_pred_boxes = pred_boxes[batch_idx]  # [num_pred, 4]
+                    target_box = target_boxes[i:i+1].clone()  # [1, 4] - 복사
+                    batch_pred_boxes = pred_boxes[batch_idx].clone()  # [num_pred, 4] - 복사
                     
                     # Center distance 계산 (간단한 방법)
                     pred_centers = batch_pred_boxes[:, :2]  # [num_pred, 2]
@@ -282,11 +282,11 @@ class YOLOLoss(nn.Module):
                     closest_idx = torch.argmin(distances)
                     pos_mask[batch_idx, closest_idx] = True
         
-        # Box Loss 계산 (positive 샘플에 대해서만)
+        # Box Loss 계산 (positive 샘플에 대해서만) - 복사하여 inplace 방지
         box_loss = torch.tensor(0.0, device=device, requires_grad=True)
         if pos_mask.any():
             # positive 예측과 해당 타겟 매칭
-            pos_pred_boxes = pred_boxes[pos_mask]  # [num_pos, 4]
+            pos_pred_boxes = pred_boxes[pos_mask].clone()  # [num_pos, 4] - 복사
             
             # 해당하는 타겟 박스 찾기
             pos_indices = torch.where(pos_mask)
@@ -296,8 +296,8 @@ class YOLOLoss(nn.Module):
                 # 해당 배치의 타겟 중에서 매칭되는 것 찾기
                 batch_targets = targets[target_batch_idx == batch_idx]
                 if len(batch_targets) > 0:
-                    # 첫 번째 타겟 사용 (더 정교한 매칭 필요)
-                    pos_target_boxes.append(batch_targets[0, 2:6])
+                    # 첫 번째 타겟 사용 (더 정교한 매칭 필요) - 복사
+                    pos_target_boxes.append(batch_targets[0, 2:6].clone())
             
             if pos_target_boxes:
                 pos_target_boxes = torch.stack(pos_target_boxes)  # [num_pos, 4]
@@ -313,10 +313,10 @@ class YOLOLoss(nn.Module):
                 box_loss = torch.clamp(box_loss, min=0.0)
                 box_loss = box_loss * self.box_loss_gain
         
-        # Classification Loss 계산 (positive 샘플에 대해서만)
+        # Classification Loss 계산 (positive 샘플에 대해서만) - 복사하여 inplace 방지
         cls_loss = torch.tensor(0.0, device=device, requires_grad=True)
         if pos_mask.any():
-            pos_pred_cls = pred_cls[pos_mask]  # [num_pos, num_classes]
+            pos_pred_cls = pred_cls[pos_mask].clone()  # [num_pos, num_classes] - 복사
             
             # 해당하는 타겟 클래스 찾기
             pos_target_cls = []
@@ -325,7 +325,7 @@ class YOLOLoss(nn.Module):
             for batch_idx, pred_idx in zip(pos_indices[0], pos_indices[1]):
                 batch_targets = targets[target_batch_idx == batch_idx]
                 if len(batch_targets) > 0:
-                    pos_target_cls.append(batch_targets[0, 1].long())
+                    pos_target_cls.append(batch_targets[0, 1].long().clone())  # 복사
             
             if pos_target_cls:
                 pos_target_cls = torch.stack(pos_target_cls)  # [num_pos]
@@ -337,10 +337,10 @@ class YOLOLoss(nn.Module):
                 
                 cls_loss = cls_loss * self.cls_loss_gain
         
-        # Objectness Loss 계산 (모든 샘플에 대해)
-        obj_targets = pos_mask.float()  # positive는 1, negative는 0
+        # Objectness Loss 계산 (모든 샘플에 대해) - 복사하여 inplace 방지
+        obj_targets = pos_mask.float().clone()  # positive는 1, negative는 0 - 복사
         obj_loss = F.binary_cross_entropy_with_logits(
-            pred_obj, obj_targets, reduction='mean'
+            pred_obj.clone(), obj_targets, reduction='mean'  # 예측도 복사
         ) * self.obj_loss_gain
         
         # Uncertainty weighting 적용
@@ -925,11 +925,11 @@ def calculate_unlabeled_loss(model, high_quality_pseudo_labels, strong_unlabeled
         # Student 모델로 Strong Augmentation된 unlabeled 데이터 예측
         student_predictions = student_model.model(strong_unlabeled_images)
         
-        # Pseudo Label을 YOLO target 형식으로 변환
+        # Pseudo Label을 YOLO target 형식으로 변환 - 복사하여 inplace 방지
         pseudo_targets = []
         for i, pseudo_label in enumerate(high_quality_pseudo_labels[:len(strong_unlabeled_images)]):
             if 'boxes' in pseudo_label and len(pseudo_label['boxes']) > 0:
-                boxes = pseudo_label['boxes']
+                boxes = pseudo_label['boxes'].clone()  # 복사
                 batch_labels = torch.zeros((len(boxes), 6), device=device)
                 batch_labels[:, 0] = i  # batch index
                 batch_labels[:, 1:] = boxes  # [class_id, x, y, w, h]
@@ -959,7 +959,7 @@ def calculate_unlabeled_loss(model, high_quality_pseudo_labels, strong_unlabeled
                 if high_quality_pseudo_labels:
                     variances = []
                     for pl in high_quality_pseudo_labels[:len(strong_unlabeled_images)]:
-                        reliability_score = pl['uncertainty_stats'].get('reliability_score', 0.8)
+                        reliability_score = pl['uncertainty_stats'].get('reliability_score', 0.5)
                         variance = max(0.01, 1.0 - reliability_score)
                         variances.append(variance)
                     
@@ -985,4 +985,464 @@ def calculate_unlabeled_loss(model, high_quality_pseudo_labels, strong_unlabeled
         
     except Exception as e:
         logger.debug(f"Unlabeled Data Loss calculation failed: {e}")
-        return torch.tensor(0.0, device=device, requires_grad=True) 
+        return torch.tensor(0.0, device=device, requires_grad=True)
+
+
+class MCDropoutConsistencyLoss(nn.Module):
+    """
+    MC Dropout 기반 Consistency Loss
+    
+    Student 모델의 MC Dropout 예측과 high-quality pseudo labels 간의 일관성을 학습
+    불확실성 정보를 활용하여 신뢰도 기반 가중치 적용
+    
+    MC Consistency Loss = α * Pseudo_Label_Consistency + β * MC_Uncertainty_Regularization
+    """
+    
+    def __init__(
+        self,
+        alpha: float = 1.0,          # Pseudo label consistency weight
+        beta: float = 0.5,           # MC uncertainty regularization weight
+        temperature: float = 1.0,    # Temperature scaling
+        uncertainty_threshold: float = 0.1,  # 불확실성 임계값
+        use_adaptive_weighting: bool = True  # 적응적 가중치 사용
+    ):
+        super().__init__()
+        self.alpha = alpha
+        self.beta = beta
+        self.temperature = temperature
+        self.uncertainty_threshold = uncertainty_threshold
+        self.use_adaptive_weighting = use_adaptive_weighting
+        
+        # 적응적 가중치를 위한 running statistics
+        self.register_buffer('running_pseudo_consistency', torch.tensor(0.0))
+        self.register_buffer('running_mc_uncertainty', torch.tensor(0.0))
+        self.register_buffer('num_updates', torch.tensor(0))
+    
+    def forward(
+        self,
+        student_mc_predictions: Union[List[torch.Tensor], List[dict]],  # Student MC Dropout 예측들 또는 detector 결과
+        high_quality_pseudo_labels: List[dict],      # Teacher가 생성한 pseudo labels
+        strong_unlabeled_images: torch.Tensor,       # Strong augmentation된 이미지
+        return_components: bool = False
+    ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
+        """
+        MC Dropout Consistency Loss 계산
+        
+        Args:
+            student_mc_predictions: Student 모델의 MC Dropout 예측 리스트 [T x (B, N, C)] 또는 detector 결과
+            high_quality_pseudo_labels: Teacher가 생성한 고품질 pseudo label 리스트
+            strong_unlabeled_images: Strong augmentation된 unlabeled 이미지
+            return_components: 개별 loss 컴포넌트 반환 여부
+        
+        Returns:
+            Total MC consistency loss or dictionary of components
+        """
+        # detector 결과인지 확인 (dict 형태)
+        if isinstance(student_mc_predictions, list) and len(student_mc_predictions) > 0:
+            if isinstance(student_mc_predictions[0], dict):
+                # detector 결과를 MC tensor로 변환
+                mc_tensor = self._convert_detector_result_to_mc_tensor(student_mc_predictions, strong_unlabeled_images)
+                if mc_tensor is None:
+                    # 변환 실패 시 기본값 반환
+                    device = strong_unlabeled_images.device
+                    return torch.tensor(0.0, device=device, requires_grad=True)
+            else:
+                # 기존 MC predictions 리스트
+                if len(student_mc_predictions) < 2:
+                    raise ValueError("MC Consistency Loss requires at least 2 MC samples")
+                # 복사하여 inplace operation 방지
+                mc_tensor = torch.stack([pred.clone() for pred in student_mc_predictions], dim=0)  # (T, B, N, C)
+        else:
+            raise ValueError("Invalid student_mc_predictions format")
+        
+        device = mc_tensor.device
+        T, B, N, C = mc_tensor.shape
+        
+        # 1. Pseudo Label Consistency Loss
+        pseudo_consistency_loss = self._compute_pseudo_label_consistency(
+            mc_tensor, high_quality_pseudo_labels, strong_unlabeled_images
+        )
+        
+        # 2. MC Uncertainty Regularization Loss
+        mc_uncertainty_loss = self._compute_mc_uncertainty_regularization(mc_tensor)
+        
+        # 3. 적응적 가중치 조정
+        if self.use_adaptive_weighting:
+            adaptive_weights = self._compute_adaptive_weights(
+                pseudo_consistency_loss, mc_uncertainty_loss
+            )
+            alpha, beta = adaptive_weights
+        else:
+            alpha, beta = self.alpha, self.beta
+        
+        # 4. Total MC Consistency Loss 계산
+        total_loss = alpha * pseudo_consistency_loss + beta * mc_uncertainty_loss
+        
+        if return_components:
+            return {
+                'total': total_loss,
+                'pseudo_consistency': pseudo_consistency_loss,
+                'mc_uncertainty': mc_uncertainty_loss,
+                'adaptive_weights': {'alpha': alpha, 'beta': beta}
+            }
+        else:
+            return total_loss
+    
+    def _compute_pseudo_label_consistency(
+        self,
+        mc_tensor: torch.Tensor,  # (T, B, N, C)
+        high_quality_pseudo_labels: List[dict],
+        strong_unlabeled_images: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Student MC 예측과 Teacher pseudo label 간의 일관성 계산
+        불확실성 기반 가중치 적용
+        """
+        device = mc_tensor.device
+        T, B, N, C = mc_tensor.shape
+        
+        # MC 예측의 평균과 분산 계산
+        mean_pred = mc_tensor.mean(dim=0)  # (B, N, C)
+        pred_variance = mc_tensor.var(dim=0)  # (B, N, C)
+        
+        # 불확실성 기반 신뢰도 가중치 계산
+        uncertainty_weights = self._compute_uncertainty_weights(pred_variance)
+        
+        total_consistency_loss = torch.tensor(0.0, device=device, requires_grad=True)
+        valid_pairs = 0
+        
+        for batch_idx in range(B):
+            if batch_idx < len(high_quality_pseudo_labels):
+                pseudo_label = high_quality_pseudo_labels[batch_idx]
+                
+                if 'boxes' in pseudo_label and len(pseudo_label['boxes']) > 0:
+                    pseudo_boxes = pseudo_label['boxes']  # [num_objects, 5] (class_id, x, y, w, h)
+                    
+                    # Student 예측에서 해당 배치의 예측 추출
+                    batch_pred = mean_pred[batch_idx]  # (N, C)
+                    batch_uncertainty = uncertainty_weights[batch_idx]  # (N,)
+                    
+                    # Pseudo label과 Student 예측 간의 일관성 계산
+                    consistency_loss = self._compute_box_class_consistency(
+                        batch_pred, pseudo_boxes, batch_uncertainty
+                    )
+                    
+                    total_consistency_loss = total_consistency_loss + consistency_loss
+                    valid_pairs += 1
+        
+        # 평균 계산
+        if valid_pairs > 0:
+            return total_consistency_loss / valid_pairs
+        else:
+            return torch.tensor(0.0, device=device, requires_grad=True)
+    
+    def _compute_box_class_consistency(
+        self,
+        student_pred: torch.Tensor,  # (N, C)
+        pseudo_boxes: torch.Tensor,  # (num_objects, 5)
+        uncertainty_weights: torch.Tensor  # (N,)
+    ) -> torch.Tensor:
+        """
+        박스와 클래스 예측 간의 일관성 계산
+        """
+        device = student_pred.device
+        
+        if len(pseudo_boxes) == 0:
+            return torch.tensor(0.0, device=device, requires_grad=True)
+        
+        # Student 예측에서 박스와 클래스 분리
+        student_boxes = student_pred[:, :4]  # (N, 4) - x, y, w, h
+        student_obj = torch.sigmoid(student_pred[:, 4])  # (N,) - objectness
+        student_cls = student_pred[:, 5:]  # (N, num_classes) - class logits
+        
+        # Pseudo label에서 박스와 클래스 분리
+        pseudo_cls_ids = pseudo_boxes[:, 0].long()  # (num_objects,) - class IDs
+        pseudo_boxes_coords = pseudo_boxes[:, 1:5]  # (num_objects, 4) - x, y, w, h
+        
+        # IoU 기반 매칭
+        iou_matrix = self._compute_iou_matrix(student_boxes, pseudo_boxes_coords)
+        matched_indices = self._match_predictions_to_pseudo(iou_matrix, student_obj)
+        
+        consistency_loss = torch.tensor(0.0, device=device, requires_grad=True)
+        num_matches = 0
+        
+        for student_idx, pseudo_idx in matched_indices:
+            if student_idx is not None and pseudo_idx is not None:
+                # 박스 일관성 (MSE with uncertainty weight)
+                box_loss = F.mse_loss(
+                    student_boxes[student_idx], 
+                    pseudo_boxes_coords[pseudo_idx]
+                )
+                
+                # 클래스 일관성 (Cross-entropy with uncertainty weight)
+                target_cls = pseudo_cls_ids[pseudo_idx]
+                cls_loss = F.cross_entropy(
+                    student_cls[student_idx].unsqueeze(0), 
+                    target_cls.unsqueeze(0)
+                )
+                
+                # 불확실성 가중치 적용
+                weight = uncertainty_weights[student_idx]
+                weighted_loss = weight * (box_loss + cls_loss)
+                
+                consistency_loss = consistency_loss + weighted_loss
+                num_matches += 1
+        
+        if num_matches > 0:
+            return consistency_loss / num_matches
+        else:
+            return torch.tensor(0.0, device=device, requires_grad=True)
+    
+    def _compute_mc_uncertainty_regularization(self, mc_tensor: torch.Tensor) -> torch.Tensor:
+        """
+        MC Dropout 예측의 불확실성 정규화
+        너무 높은 불확실성을 방지하면서도 적절한 불확실성 유지
+        """
+        T, B, N, C = mc_tensor.shape
+        
+        # 예측 분산 계산
+        pred_variance = mc_tensor.var(dim=0)  # (B, N, C)
+        
+        # 박스와 클래스 분리
+        box_variance = pred_variance[..., :4].sum(dim=-1)  # (B, N)
+        cls_variance = pred_variance[..., 5:].sum(dim=-1)  # (B, N)
+        
+        # 불확실성 정규화: 너무 높거나 너무 낮은 불확실성 모두 페널티
+        target_uncertainty = self.uncertainty_threshold
+        
+        box_uncertainty_loss = F.mse_loss(box_variance, torch.full_like(box_variance, target_uncertainty))
+        cls_uncertainty_loss = F.mse_loss(cls_variance, torch.full_like(cls_variance, target_uncertainty))
+        
+        return box_uncertainty_loss + cls_uncertainty_loss
+    
+    def _compute_uncertainty_weights(self, pred_variance: torch.Tensor) -> torch.Tensor:
+        """
+        불확실성 기반 신뢰도 가중치 계산
+        불확실성이 낮을수록 높은 가중치
+        """
+        # 전체 분산의 평균
+        total_variance = pred_variance.sum(dim=-1)  # (B, N)
+        
+        # 불확실성을 신뢰도로 변환 (낮은 분산 = 높은 신뢰도)
+        confidence = torch.exp(-total_variance / self.temperature)
+        
+        # 정규화
+        confidence = torch.clamp(confidence, 0.1, 1.0)
+        
+        return confidence
+    
+    def _convert_detector_result_to_mc_tensor(
+        self, 
+        detector_results: List[dict], 
+        strong_unlabeled_images: torch.Tensor
+    ) -> Optional[torch.Tensor]:
+        """
+        detector.predict_with_uncertainty 결과를 MC tensor로 변환
+        
+        Args:
+            detector_results: detector.predict_with_uncertainty의 결과 리스트
+            strong_unlabeled_images: 입력 이미지 텐서
+            
+        Returns:
+            MC tensor (T, B, N, C) 또는 None (변환 실패 시)
+        """
+        try:
+            device = strong_unlabeled_images.device
+            B = strong_unlabeled_images.shape[0]  # 배치 크기
+            
+            # detector 결과에서 MC 예측 정보 추출
+            # detector 결과는 이미 필터링된 최종 결과이므로, 
+            # MC tensor를 재구성하기 위해 단일 예측을 여러 번 복제
+            mc_samples = []
+            
+            for batch_idx in range(B):
+                if batch_idx < len(detector_results):
+                    result = detector_results[batch_idx]
+                    
+                    if 'boxes' in result and len(result['boxes']) > 0:
+                        boxes = result['boxes']  # (N, 4)
+                        scores = result['scores']  # (N,)
+                        labels = result['labels']  # (N,)
+                        
+                        # YOLO 형식으로 변환: (N, 5+num_classes)
+                        num_classes = 80  # COCO 기본값 (config에서 가져와야 함)
+                        yolo_pred = torch.zeros(len(boxes), 5 + num_classes, device=device)
+                        
+                        # 박스 좌표 (x, y, w, h)
+                        yolo_pred[:, :4] = boxes
+                        
+                        # objectness score
+                        yolo_pred[:, 4] = scores
+                        
+                        # 클래스 one-hot encoding
+                        for i, label in enumerate(labels):
+                            if 0 <= label < num_classes:
+                                yolo_pred[i, 5 + label] = 1.0
+                        
+                        mc_samples.append(yolo_pred)
+                    else:
+                        # 빈 예측
+                        mc_samples.append(torch.zeros(0, 5 + 80, device=device))
+                else:
+                    # 빈 예측
+                    mc_samples.append(torch.zeros(0, 5 + 80, device=device))
+            
+            # MC tensor 생성 (단일 예측을 여러 번 복제하여 MC 효과 시뮬레이션)
+            # 실제로는 detector에서 이미 MC 샘플링이 완료되었으므로, 
+            # 단일 예측을 기반으로 일관성 loss 계산
+            if mc_samples:
+                # 가장 긴 예측 길이에 맞춰 패딩
+                max_len = max(len(sample) for sample in mc_samples)
+                padded_samples = []
+                
+                for sample in mc_samples:
+                    if len(sample) < max_len:
+                        # 패딩
+                        padding = torch.zeros(max_len - len(sample), sample.shape[1], device=device)
+                        padded_sample = torch.cat([sample, padding], dim=0)
+                    else:
+                        padded_sample = sample
+                    padded_samples.append(padded_sample)
+                
+                # 배치 차원으로 스택
+                batch_tensor = torch.stack(padded_samples, dim=0)  # (B, N, C)
+                
+                # MC 차원 추가 (단일 예측을 3번 복제하여 MC 효과 시뮬레이션)
+                mc_tensor = batch_tensor.unsqueeze(0).repeat(3, 1, 1, 1)  # (3, B, N, C)
+                
+                return mc_tensor
+            else:
+                return None
+                
+        except Exception as e:
+            print(f"Error converting detector result to MC tensor: {e}")
+            return None
+    
+    def _compute_iou_matrix(self, boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
+        """
+        두 박스 세트 간의 IoU 행렬 계산
+        """
+        # 간단한 IoU 계산 (xywh format)
+        def box_iou(box1, box2):
+            # 박스 차원 확인 및 수정
+            if len(box1) != 4:
+                print(f"Warning: box1 has {len(box1)} dimensions, expected 4")
+                return torch.tensor(0.0, device=box1.device)
+            if len(box2) != 4:
+                print(f"Warning: box2 has {len(box2)} dimensions, expected 4")
+                return torch.tensor(0.0, device=box2.device)
+                
+            # xywh를 xyxy로 변환
+            x1, y1, w1, h1 = box1
+            x2, y2, w2, h2 = box2
+            
+            # xyxy 좌표
+            x1_1, y1_1, x2_1, y2_1 = x1 - w1/2, y1 - h1/2, x1 + w1/2, y1 + h1/2
+            x1_2, y1_2, x2_2, y2_2 = x2 - w2/2, y2 - h2/2, x2 + w2/2, y2 + h2/2
+            
+            # 교집합
+            x1_i = torch.max(x1_1, x1_2)
+            y1_i = torch.max(y1_1, y1_2)
+            x2_i = torch.min(x2_1, x2_2)
+            y2_i = torch.min(y2_1, y2_2)
+            
+            intersection = torch.clamp(x2_i - x1_i, 0) * torch.clamp(y2_i - y1_i, 0)
+            
+            # 합집합
+            area1 = w1 * h1
+            area2 = w2 * h2
+            union = area1 + area2 - intersection
+            
+            return intersection / (union + 1e-8)
+        
+        # IoU 행렬 계산
+        iou_matrix = torch.zeros(len(boxes1), len(boxes2), device=boxes1.device)
+        for i, box1 in enumerate(boxes1):
+            for j, box2 in enumerate(boxes2):
+                iou_matrix[i, j] = box_iou(box1, box2)
+        
+        return iou_matrix
+    
+    def _match_predictions_to_pseudo(self, iou_matrix: torch.Tensor, obj_scores: torch.Tensor) -> List[Tuple[int, int]]:
+        """
+        IoU와 objectness score를 기반으로 예측과 pseudo label 매칭
+        """
+        matches = []
+        used_predictions = set()
+        used_pseudo = set()
+        
+        # IoU 임계값
+        iou_threshold = 0.5
+        
+        # 높은 IoU부터 매칭
+        while True:
+            if iou_matrix.numel() == 0:
+                break
+            max_iou = iou_matrix.max()
+            if max_iou < iou_threshold:
+                break
+            
+            pred_idx, pseudo_idx = (iou_matrix == max_iou).nonzero(as_tuple=True)
+            if len(pred_idx) == 0:
+                break
+            
+            pred_idx, pseudo_idx = pred_idx[0].item(), pseudo_idx[0].item()
+            
+            if pred_idx not in used_predictions and pseudo_idx not in used_pseudo:
+                # Objectness score가 충분히 높은 경우만 매칭
+                if obj_scores[pred_idx] > 0.25:
+                    matches.append((pred_idx, pseudo_idx))
+                    used_predictions.add(pred_idx)
+                    used_pseudo.add(pseudo_idx)
+            
+            # 해당 위치를 0으로 설정하여 다음 반복에서 제외
+            iou_matrix[pred_idx, pseudo_idx] = 0
+        
+        return matches
+    
+    def _compute_adaptive_weights(
+        self, 
+        pseudo_consistency_loss: torch.Tensor,
+        mc_uncertainty_loss: torch.Tensor
+    ) -> Tuple[float, float]:
+        """
+        학습 진행에 따른 적응적 가중치 계산
+        """
+        with torch.no_grad():
+            momentum = 0.99
+            self.running_pseudo_consistency = self.running_pseudo_consistency * momentum + pseudo_consistency_loss.detach() * (1-momentum)
+            self.running_mc_uncertainty = self.running_mc_uncertainty * momentum + mc_uncertainty_loss.detach() * (1-momentum)
+            self.num_updates += 1
+        
+        # 정규화된 loss magnitudes
+        eps = 1e-6
+        pseudo_norm = self.running_pseudo_consistency / (self.running_pseudo_consistency + eps)
+        mc_norm = self.running_mc_uncertainty / (self.running_mc_uncertainty + eps)
+        
+        # 적응적 가중치 계산
+        progress = min(self.num_updates / 1000.0, 1.0)
+        
+        # 초기에는 pseudo consistency 중시, 후기에는 MC uncertainty 중시
+        alpha = self.alpha * (1.5 - 0.5 * progress)  # 1.5 → 1.0
+        beta = self.beta * (0.5 + 0.5 * progress)    # 0.5 → 1.0
+        
+        return float(alpha), float(beta)
+
+
+def create_mc_consistency_loss(
+    alpha: float = 1.0,
+    beta: float = 0.5,
+    temperature: float = 1.0,
+    uncertainty_threshold: float = 0.1,
+    use_adaptive_weighting: bool = True
+) -> MCDropoutConsistencyLoss:
+    """
+    MC Dropout Consistency Loss 팩토리 함수
+    """
+    return MCDropoutConsistencyLoss(
+        alpha=alpha,
+        beta=beta,
+        temperature=temperature,
+        uncertainty_threshold=uncertainty_threshold,
+        use_adaptive_weighting=use_adaptive_weighting
+    ) 
