@@ -46,8 +46,12 @@ class SemiSupervisedDataset:
         with open(config_path, 'r') as f:
             return yaml.safe_load(f)
     
-    def _get_image_list(self, list_file: Path) -> List[str]:
+    def _get_image_list(self, list_file: Union[str, Path]) -> List[str]:
         """텍스트 파일에서 이미지 리스트 로드"""
+        # 문자열인 경우 Path 객체로 변환
+        if isinstance(list_file, str):
+            list_file = Path(list_file)
+        
         if not list_file.exists():
             raise FileNotFoundError(f"데이터 리스트 파일을 찾을 수 없습니다: {list_file}")
         
@@ -58,7 +62,7 @@ class SemiSupervisedDataset:
         """데이터셋 초기화"""
         # 레이블된/레이블되지 않은 데이터 리스트 파일
         labeled_list = self.data_root / f"COCO_train2017_p{self.percent}_s{self.seed}_labeled_data.txt"
-        unlabeled_list = self.data_root / f"COCO_train2017_p{self.percent}_s{self.seed}_unlabeled_data.txt"
+        unlabeled_list = f"/media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/unlabeled/unlabel_paths_{self.seed}.txt"
         
         print(f"Loading labeled data from: {labeled_list}")
         print(f"Loading unlabeled data from: {unlabeled_list}")
@@ -87,7 +91,7 @@ class SemiSupervisedDataset:
         
         print("\n=== Unlabeled 데이터셋 초기화 ===")
         self.unlabeled_dataset = YOLODataset(
-            data_root=coco_data_root,
+            data_root=unlabeled_coco_data_root,
             image_list=self._get_image_list(unlabeled_list),
             has_labels=False,  # unlabeled 데이터는 레이블 검증 안함
             transform=self.transform,
@@ -485,5 +489,5 @@ class YOLODataset(Dataset):
         return {
             'images': images,
             'labels': labels,
-            'img_paths': img_paths
+            'paths': img_paths  # train.py에서 'paths'로 접근하므로 키 이름 변경
         } 

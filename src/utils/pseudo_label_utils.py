@@ -190,10 +190,16 @@ def update_pseudo_labels(model, unlabeled_loader, detector, conf_threshold, devi
                                             
                                             yolo_detections = []
                                             for i in range(len(boxes)):
-                                                yolo_detection = torch.zeros(5)
-                                                yolo_detection[0] = labels[i].float()  # class_id
-                                                yolo_detection[1:5] = boxes[i]  # x, y, w, h
-                                                yolo_detections.append(yolo_detection)
+                                                # 박스 좌표 유효성 검사 및 클램핑
+                                                box_coords = boxes[i].clone()
+                                                box_coords = torch.clamp(box_coords, 0.0, 1.0)  # 0~1 범위로 클램핑
+                                                
+                                                # 너무 작은 박스 필터링 (최소 크기 0.01)
+                                                if box_coords[2] >= 0.01 and box_coords[3] >= 0.01:
+                                                    yolo_detection = torch.zeros(5)
+                                                    yolo_detection[0] = labels[i].float()  # class_id
+                                                    yolo_detection[1:5] = box_coords  # x, y, w, h
+                                                    yolo_detections.append(yolo_detection)
                                         
                                             if yolo_detections:
                                                 consistent_detections = torch.stack(yolo_detections)

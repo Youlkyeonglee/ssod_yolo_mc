@@ -37,7 +37,14 @@ class YOLOWithMCDropout(nn.Module):
         
         # 학생 모델 (학습 가능) - 먼저 생성
         print("🔧 Creating student model...")
-        self.student_model = YOLO(model_name)
+        # pre-trained 가중치 없이 모델 생성
+        if pretrained:
+            self.student_model = YOLO(model_name)
+        else:
+            # pre-trained 가중치 없이 모델 생성
+            self.student_model = YOLO(model_name)
+            # 가중치를 랜덤 초기화
+            self._initialize_random_weights(self.student_model)
         
         # 모델의 클래스 수 설정
         self._set_model_num_classes(self.student_model, num_classes)
@@ -60,7 +67,13 @@ class YOLOWithMCDropout(nn.Module):
             print("🔄 Falling back to manual state dict copy...")
             
             # 방법 2: 수동 복사
-            self.teacher_model = YOLO(model_name)
+            if pretrained:
+                self.teacher_model = YOLO(model_name)
+            else:
+                # pre-trained 가중치 없이 모델 생성
+                self.teacher_model = YOLO(model_name)
+                # 가중치를 랜덤 초기화
+                self._initialize_random_weights(self.teacher_model)
             self._set_model_num_classes(self.teacher_model, num_classes)
             
             # Student의 완전한 state dict를 Teacher에 복사
@@ -175,6 +188,34 @@ class YOLOWithMCDropout(nn.Module):
         except Exception as e:
             print(f"⚠️  EMA disabled: Error checking compatibility - {e}")
             return False
+
+    def _initialize_random_weights(self, yolo_model):
+        """YOLO 모델의 가중치를 랜덤 초기화"""
+        print("🔄 Initializing random weights for YOLO model...")
+        
+        def init_weights(m):
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                # Xavier/Glorot 초기화
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.BatchNorm2d):
+                # BatchNorm 초기화
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.ConvTranspose2d):
+                # Transpose Conv 초기화
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+        
+        # 모델의 모든 파라미터를 랜덤 초기화
+        if hasattr(yolo_model, 'model'):
+            yolo_model.model.apply(init_weights)
+        else:
+            yolo_model.apply(init_weights)
+        
+        print("✅ Random weight initialization completed")
 
     def _set_model_num_classes(self, yolo_model, num_classes):
         """YOLO 모델의 클래스 수를 포괄적으로 설정"""
@@ -499,6 +540,16 @@ class YOLOWithMCDropout(nn.Module):
         """
         # validation 전에 클래스 수 재설정
         self._set_model_num_classes(self.student_model, self.num_classes)
+        
+        # 시각화 관련 매개변수 비활성화
+        kwargs.update({
+            'save': False,  # 시각화 저장 비활성화
+            'save_txt': False,  # 텍스트 결과 저장 비활성화
+            'save_conf': False,  # 신뢰도 저장 비활성화
+            'save_json': False,  # JSON 저장 비활성화
+            'plots': False,  # 플롯 생성 비활성화
+            'verbose': False  # 상세 출력 비활성화
+        })
         
         return self.student_model.predict(
             source=source,

@@ -258,7 +258,7 @@ def visualize_gt_data(
     max_batches: int = 3,
     max_images_per_batch: int = 8
 ) -> None:
-    """GT(Ground Truth) 데이터를 시각화하여 저장
+    """GT(Ground Truth) 데이터를 시각화하여 저장 (안전한 버전)
     
     Args:
         data_loader: 데이터 로더 (train 또는 val)
@@ -271,7 +271,7 @@ def visualize_gt_data(
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     
-    print(f"Starting {data_type} GT data visualization...")
+    print(f"Starting {data_type} GT data visualization (safe mode)...")
     
     batch_count = 0
     for batch_idx, batch in enumerate(data_loader):
@@ -280,92 +280,293 @@ def visualize_gt_data(
             
         print(f"Processing {data_type} batch {batch_idx + 1}/{min(max_batches, len(data_loader))}...")
         
-        # 배치에서 이미지와 레이블 추출
-        if isinstance(batch, dict):
-            images = batch['images']
-            labels = batch['labels']
-            img_paths = batch.get('img_paths', None)
-        else:
-            images, labels = batch
-            img_paths = None
-        
-        # 원본 이미지들을 다시 로드 (transform 없이)
-        if img_paths is not None:
-            original_images = []
-            target_size = 640
+        try:
+            # 배치에서 이미지와 레이블 추출
+            if isinstance(batch, dict):
+                images = batch['images']
+                labels = batch['labels']
+                img_paths = batch.get('img_paths', None)
+            else:
+                images, labels = batch
+                img_paths = None
             
-            for img_path in img_paths[:max_images_per_batch]:
-                try:
-                    img_cv2 = cv2.imread(img_path)
-                    if img_cv2 is not None:
-                        img_rgb = cv2.cvtColor(img_cv2, cv2.COLOR_BGR2RGB)
-                        # 640x640으로 리사이즈 (aspect ratio 무시)
-                        img_resized = cv2.resize(img_rgb, (target_size, target_size))
-                        # numpy를 tensor로 변환 (H, W, C) -> (C, H, W)
-                        img_tensor = torch.from_numpy(img_resized).permute(2, 0, 1).float() / 255.0
-                        original_images.append(img_tensor)
-                    else:
-                        print(f"Warning: Could not load image {img_path}")
-                except Exception as e:
-                    print(f"Error loading image {img_path}: {e}")
-            
-            if original_images:
-                # 원본 이미지들을 스택
-                original_images_batch = torch.stack(original_images)
-                
-                # GT 레이블만 시각화 (예측은 없음)
-                empty_predictions = [None] * len(original_images)
-                
-                # 해당 이미지들의 레이블만 추출
-                batch_labels = labels[:len(original_images)]
-                
-                # 시각화 및 저장
-                save_path = save_dir / f'{data_type}_gt_batch_{batch_idx + 1}.png'
-                
-                visualize_batch(
-                    images=original_images_batch,
-                    targets=batch_labels,
-                    predictions=empty_predictions,
-                    class_names=class_names,
-                    save_path=save_path,
-                    max_images=max_images_per_batch,
-                    img_paths=img_paths[:len(original_images)]
-                )
-                
-                # 레이블 통계 출력
-                total_objects = 0
-                valid_images = 0
-                for labels_per_img in batch_labels:
-                    if labels_per_img is not None and len(labels_per_img) > 0:
-                        valid_images += 1
-                        total_objects += len(labels_per_img)
-                
-                print(f"  - Batch {batch_idx + 1}: {len(original_images)} images, {valid_images} with labels, {total_objects} total objects")
-        else:
-            # img_paths가 없는 경우 transform된 이미지 사용
-            print(f"Warning: No image paths available for batch {batch_idx + 1}, using transformed images")
-            
-            # transform된 이미지 사용
+            # 안전한 이미지 처리 (transform된 이미지 사용)
             batch_images = images[:max_images_per_batch]
             batch_labels = labels[:max_images_per_batch]
             empty_predictions = [None] * len(batch_images)
             
-            save_path = save_dir / f'{data_type}_gt_batch_{batch_idx + 1}_transformed.png'
+            # 시각화 및 저장
+            save_path = save_dir / f'{data_type}_gt_batch_{batch_idx + 1}.png'
             
-            visualize_batch(
+            # 안전한 시각화 함수 호출
+            visualize_batch_safe(
                 images=batch_images,
                 targets=batch_labels,
                 predictions=empty_predictions,
                 class_names=class_names,
                 save_path=save_path,
-                max_images=max_images_per_batch,
-                img_paths=None  # transform된 이미지 사용 시에는 경로 없음
+                max_images=max_images_per_batch
             )
-        
-        batch_count += 1
+            
+            # 레이블 통계 출력
+            total_objects = 0
+            valid_images = 0
+            for labels_per_img in batch_labels:
+                if labels_per_img is not None and len(labels_per_img) > 0:
+                    valid_images += 1
+                    total_objects += len(labels_per_img)
+            
+            print(f"  - Batch {batch_idx + 1}: {len(batch_images)} images, {valid_images} with labels, {total_objects} total objects")
+            
+            batch_count += 1
+            
+        except Exception as e:
+            print(f"Error processing batch {batch_idx}: {e}")
+            continue
     
     print(f"Completed {data_type} GT data visualization. Saved {batch_count} batches to {save_dir}")
 
+def denormalize(img, mean, std):
+    """정규화된 이미지를 원본으로 복원"""
+    img = img.clone()
+    for t, m, s in zip(img, mean, std):
+        t.mul_(s).add_(m)
+    return img
+
+def visualize_batch_safe(
+    images: torch.Tensor,
+    targets: List[torch.Tensor],
+    predictions: List[torch.Tensor],
+    class_names: List[str],
+    save_path: Path,
+    max_images: int = 8
+) -> None:
+    """안전한 배치 시각화 함수 (hang 방지)
+    
+    Args:
+        images: 배치 이미지 텐서 (B, C, H, W)
+        targets: 정답 박스 리스트
+        predictions: 예측 박스 리스트 (사용하지 않음)
+        class_names: 클래스 이름 리스트
+        save_path: 저장 경로
+        max_images: 시각화할 최대 이미지 수
+    """
+    try:
+        # 배치 크기 제한
+        batch_size = min(len(images), max_images)
+        
+        # 서브플롯 크기 계산
+        n_cols = min(4, batch_size)
+        n_rows = (batch_size - 1) // n_cols + 1
+        
+        plt.figure(figsize=(n_cols * 4, n_rows * 4))
+        
+        # 정규화 해제용 mean/std
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+        
+        for i in range(batch_size):
+            plt.subplot(n_rows, n_cols, i + 1)
+            
+            # 이미지 처리
+            img = images[i]
+            if torch.is_tensor(img):
+                # 정규화 해제 후 시각화
+                img = denormalize(img, mean, std)
+                img_np = img.permute(1, 2, 0).cpu().numpy()
+                img_np = np.clip(img_np, 0, 1)
+            else:
+                img_np = img
+            
+            plt.imshow(img_np)
+            plt.axis('off')
+            
+            # 이미지 크기
+            img_h, img_w = img_np.shape[:2]
+            
+            # 정답 박스 그리기 (녹색)
+            if i < len(targets) and targets[i] is not None and len(targets[i]) > 0:
+                target_boxes = targets[i].cpu().numpy() if torch.is_tensor(targets[i]) else targets[i]
+                
+                for box in target_boxes:
+                    if len(box) >= 5:  # class_id, x_center, y_center, width, height
+                        try:
+                            class_id = int(box[0])
+                            
+                            # 클래스 ID 유효성 검증
+                            if 0 <= class_id < len(class_names):
+                                # center + width/height 형식 -> 픽셀 좌표 변환
+                                x_center, y_center, width, height = box[1:5]
+                                
+                                # 픽셀 좌표 계산 (center -> top-left corner)
+                                x1 = (x_center - width / 2) * img_w
+                                y1 = (y_center - height / 2) * img_h
+                                x2 = (x_center + width / 2) * img_w
+                                y2 = (y_center + height / 2) * img_h
+                                
+                                # 경계 체크
+                                x1, y1 = max(0, x1), max(0, y1)
+                                x2, y2 = min(img_w-1, x2), min(img_h-1, y2)
+                                
+                                # 박스 그리기
+                                rect = plt.Rectangle(
+                                    (x1, y1), x2-x1, y2-y1,
+                                    fill=False, color='lime', linewidth=2, alpha=0.8
+                                )
+                                plt.gca().add_patch(rect)
+                                
+                                # 클래스 이름 표시 (간단하게)
+                                plt.text(
+                                    x1, y1-5,
+                                    f'{class_names[class_id]}',
+                                    color='lime',
+                                    fontsize=8,
+                                    fontweight='bold',
+                                    bbox=dict(boxstyle="round,pad=0.2", facecolor='black', alpha=0.7)
+                                )
+                        except Exception as e:
+                            print(f"Warning: Error drawing box {box}: {e}")
+                            continue
+            
+            plt.title(f'Image {i+1}', fontsize=10)
+        
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        
+    except Exception as e:
+        print(f"Error in visualize_batch_safe: {e}")
+        # 빈 이미지 생성
+        plt.figure(figsize=(8, 6))
+        plt.text(0.5, 0.5, f'Visualization Error: {e}', 
+                ha='center', va='center', transform=plt.gca().transAxes)
+        plt.savefig(save_path)
+        plt.close()
+
+def visualize_dataset_statistics(
+    labeled_loader: torch.utils.data.DataLoader,
+    unlabeled_loader: torch.utils.data.DataLoader,
+    val_loader: torch.utils.data.DataLoader,
+    class_names: List[str],
+    save_dir: Path
+) -> None:
+    """데이터셋 통계 시각화 (간단한 버전)
+    
+    Args:
+        labeled_loader: 레이블된 데이터 로더
+        unlabeled_loader: 레이블되지 않은 데이터 로더
+        val_loader: 검증 데이터 로더
+        class_names: 클래스 이름 리스트
+        save_dir: 저장 디렉토리
+    """
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    
+    print("📊 데이터셋 통계 시각화 중...")
+    
+    # 데이터셋 크기 통계
+    dataset_sizes = {
+        'Labeled': len(labeled_loader.dataset),
+        'Unlabeled': len(unlabeled_loader.dataset),
+        'Validation': len(val_loader.dataset)
+    }
+    
+    # 클래스별 객체 수 통계 (레이블된 데이터에서만)
+    class_counts = {name: 0 for name in class_names}
+    total_objects = 0
+    
+    try:
+        # 레이블된 데이터에서 클래스별 객체 수 계산
+        for batch_idx, batch in enumerate(labeled_loader):
+            if batch_idx >= 10:  # 샘플링으로 제한
+                break
+                
+            labels = batch['labels']
+            for labels_per_img in labels:
+                if labels_per_img is not None and len(labels_per_img) > 0:
+                    for label in labels_per_img:
+                        if len(label) >= 1:
+                            class_id = int(label[0])
+                            if 0 <= class_id < len(class_names):
+                                class_counts[class_names[class_id]] += 1
+                                total_objects += 1
+        
+        # 통계 시각화
+        plt.figure(figsize=(15, 10))
+        
+        # 1. 데이터셋 크기
+        plt.subplot(2, 2, 1)
+        sizes = list(dataset_sizes.values())
+        labels = list(dataset_sizes.keys())
+        colors = ['skyblue', 'lightcoral', 'lightgreen']
+        
+        plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
+        plt.title('Dataset Size Distribution', fontsize=14, fontweight='bold')
+        
+        # 2. 클래스별 객체 수 (상위 20개만)
+        plt.subplot(2, 2, 2)
+        sorted_classes = sorted(class_counts.items(), key=lambda x: x[1], reverse=True)[:20]
+        class_names_plot = [item[0] for item in sorted_classes]
+        class_counts_plot = [item[1] for item in sorted_classes]
+        
+        plt.barh(range(len(class_names_plot)), class_counts_plot, color='lightblue')
+        plt.yticks(range(len(class_names_plot)), class_names_plot)
+        plt.xlabel('Object Count')
+        plt.title('Top 20 Classes by Object Count', fontsize=12)
+        plt.gca().invert_yaxis()
+        
+        # 3. 객체 수 분포 히스토그램
+        plt.subplot(2, 2, 3)
+        non_zero_counts = [count for count in class_counts.values() if count > 0]
+        plt.hist(non_zero_counts, bins=20, color='lightgreen', alpha=0.7, edgecolor='black')
+        plt.xlabel('Object Count per Class')
+        plt.ylabel('Number of Classes')
+        plt.title('Distribution of Object Counts per Class', fontsize=12)
+        plt.grid(True, alpha=0.3)
+        
+        # 4. 요약 통계
+        plt.subplot(2, 2, 4)
+        plt.axis('off')
+        
+        stats_text = f"""Dataset Statistics Summary:
+
+Total Images:
+• Labeled: {dataset_sizes['Labeled']:,}
+• Unlabeled: {dataset_sizes['Unlabeled']:,}
+• Validation: {dataset_sizes['Validation']:,}
+
+Object Detection:
+• Total Objects: {total_objects:,}
+• Classes with Objects: {len([c for c in class_counts.values() if c > 0])}
+• Average Objects per Class: {total_objects / len([c for c in class_counts.values() if c > 0]):.1f}
+
+Top 5 Classes:
+"""
+        
+        top_5 = sorted(class_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        for i, (class_name, count) in enumerate(top_5, 1):
+            stats_text += f"• {class_name}: {count:,}\n"
+        
+        plt.text(0.1, 0.9, stats_text, transform=plt.gca().transAxes, 
+                fontsize=10, verticalalignment='top', fontfamily='monospace')
+        
+        plt.tight_layout()
+        plt.savefig(save_dir / 'dataset_statistics.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        print(f"✅ 데이터셋 통계 시각화 완료: {save_dir / 'dataset_statistics.png'}")
+        
+    except Exception as e:
+        print(f"❌ 데이터셋 통계 시각화 실패: {e}")
+        # 간단한 텍스트 파일로 통계 저장
+        with open(save_dir / 'dataset_statistics.txt', 'w') as f:
+            f.write("Dataset Statistics:\n")
+            f.write("=" * 50 + "\n")
+            for name, size in dataset_sizes.items():
+                f.write(f"{name}: {size:,} images\n")
+            f.write(f"\nTotal Objects: {total_objects:,}\n")
+            f.write(f"Classes with Objects: {len([c for c in class_counts.values() if c > 0])}\n")
+ 
 def plot_metrics(metrics: Dict[str, List[float]], save_path: Path) -> None:
     """학습 메트릭 시각화
 

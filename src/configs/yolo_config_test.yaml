@@ -61,7 +61,7 @@ data:
   
   # 이미지 설정
   img_size: 640
-  batch_size: 8  # 테스트용으로 배치 크기 감소
+  batch_size: 2  # 테스트용으로 배치 크기 감소
   num_workers: 0
   augment: true
   max_samples: 10  # 테스트용: 매우 적은 샘플
@@ -72,7 +72,7 @@ training:
   # 학습 파라미터 (테스트용)
   epochs: 1  # 테스트용: 1 에포크만
   mature_epoch: 1
-  batch_size: 8
+  batch_size: 2
   img_size: 640
   learning_rate: 0.001
   weight_decay: 0.0005
@@ -95,16 +95,17 @@ training:
   # Semi-supervised 학습 설정
   semi_supervised:
     enabled: true
-    pseudo_label_start_epoch: 1  # 첫 에포크부터 pseudo label 시작
+    pseudo_label_start_epoch: 0  # 첫 에포크부터 pseudo label 시작 (테스트용)
     unlabeled_weight: 0.5
-    conf_threshold: 0.5
+    conf_threshold: 0.01  # 테스트용으로 매우 낮춤
     max_pseudo_labels: 100  # 테스트용으로 제한
     
     # MC Dropout 설정
     uncertainty:
-      box_std_threshold: 0.1
-      entropy_threshold: 0.5
+      box_std_threshold: 10.0  # 매우 완화 (기존 0.1)
+      entropy_threshold: 10.0  # 매우 완화 (기존 0.5)
       min_detections: 1  # 테스트용으로 감소
+
     uncertainty_weight: 5.0
     uncertainty_alpha: 5.0
     consistency_weight: 0.1
@@ -119,10 +120,10 @@ training:
     
     # 불확실성 필터링 임계값
     uncertainty:
-      box_std_threshold: 0.1
-      entropy_threshold: 0.5
-      confidence_threshold: 0.7
-      reliability_threshold: 0.8
+      box_std_threshold: 10.0  # 매우 완화 (기존 0.1)
+      entropy_threshold: 10.0  # 매우 완화 (기존 0.5)
+      confidence_threshold: 0.001  # 매우 완화 (기존 0.7)
+      reliability_threshold: 0.001  # 매우 완화 (기존 0.8)
   
   # Feature Alignment 설정
   feature_alignment:
@@ -142,6 +143,14 @@ training:
       bbox_loss_type: "ciou"
       focal_loss_gamma: 0.0
       label_smoothing: 0.0
+    semi_supervised:
+      box_loss_gain: 7.5
+      cls_loss_gain: 0.5
+      obj_loss_gain: 1.0
+      bbox_loss_type: "ciou"
+      focal_loss_gamma: 0.0
+      label_smoothing: 0.0
+      uncertainty_alpha: 5.0
 
 evaluation:
   metrics: ["mAP50", "mAP50-95"]

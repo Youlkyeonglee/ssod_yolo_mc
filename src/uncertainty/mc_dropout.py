@@ -11,8 +11,14 @@ from datetime import datetime
 import torch.nn.functional as F
 import logging
 import time
+import sys
+import os
 
-class MCDropoutDetector:
+# 프로젝트 루트 경로 추가
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.data_validation import validate_box_coordinates, filter_invalid_predictions
+
+class MCDropoutDetector(nn.Module):
     """Monte Carlo Dropout을 사용한 객체 탐지 불확실성 추정"""
     
     def __init__(
@@ -23,6 +29,7 @@ class MCDropoutDetector:
         box_std_threshold: float = 0.1,
         entropy_threshold: float = 0.5,
         conf_threshold: float = 0.25,
+        max_pseudo_labels: int = 200,
         save_dir: Optional[Path] = None
     ):
         """
@@ -30,17 +37,20 @@ class MCDropoutDetector:
             model: 기본 객체 탐지 모델
             num_samples: MC Dropout 샘플링 횟수
             dropout_rate: Dropout 비율
-            box_std_threshold: 박스 좌표 표준편차 임계값
-            entropy_threshold: 클래스 엔트로피 임계값
+            box_std_threshold: 박스 좌표 표준편차 임계값 (초기값)
+            entropy_threshold: 클래스 엔트로피 임계값 (초기값)
             conf_threshold: 신뢰도 임계값
             save_dir: 결과 저장 디렉토리
         """
+        super().__init__()
+        
         self.model = model
         self.num_samples = num_samples
         self.dropout_rate = dropout_rate
         self.box_std_threshold = box_std_threshold
         self.entropy_threshold = entropy_threshold
         self.conf_threshold = conf_threshold
+        self.max_pseudo_labels = max_pseudo_labels
         
         # 결과 저장 디렉토리 설정
         if save_dir is None:
@@ -48,7 +58,6 @@ class MCDropoutDetector:
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
     
-
         # 데이터 수집을 위한 변수들
         self.prediction_history = []
         self.uncertainty_history = []
@@ -61,6 +70,88 @@ class MCDropoutDetector:
         for module in self.model.modules():
             if isinstance(module, nn.Dropout):
                 module.train()  # Dropout을 활성화 상태로 유지
+
+    def update_adaptive_thresholds(self, box_stds: torch.Tensor, class_entropies: torch.Tensor):
+        """
+        계산된 box_std와 class_entropy 값들을 기반으로 동적 임계값 업데이트
+        
+        Args:
+            box_stds: 현재 배치의 box_std 값들 (N, 4) 또는 (batch, N, 4)
+            class_entropies: 현재 배치의 class_entropy 값들 (N,) 또는 (batch, N)
+        """
+        if not self.adaptive_thresholds:
+            return
+        
+        with torch.no_grad():
+            # 텐서 차원 정규화
+            if len(box_stds.shape) == 3:  # (batch, N, 4)
+                box_stds = box_stds.view(-1, 4)  # (batch*N, 4)
+            if len(class_entropies.shape) == 2:  # (batch, N)
+                class_entropies = class_entropies.view(-1)  # (batch*N,)
+            
+            # 유효한 값들만 필터링 (NaN, inf 제거)
+            valid_box_mask = torch.isfinite(box_stds).all(dim=-1)
+            valid_entropy_mask = torch.isfinite(class_entropies)
+            
+            if valid_box_mask.any():
+                # box_std 평균 계산 (각 좌표별 평균의 평균)
+                valid_box_stds = box_stds[valid_box_mask]
+                current_box_std_mean = valid_box_stds.mean().item()
+                
+                # 동적 임계값 업데이트 (모멘텀 적용)
+                self.running_box_std_mean = (
+                    self.threshold_momentum * self.running_box_std_mean + 
+                    (1 - self.threshold_momentum) * current_box_std_mean
+                )
+                
+                # 임계값을 평균값의 일정 비율로 설정 (예: 평균의 80%)
+                self.box_std_threshold = self.running_box_std_mean * 0.8
+            
+            if valid_entropy_mask.any():
+                # class_entropy 평균 계산
+                valid_entropies = class_entropies[valid_entropy_mask]
+                current_entropy_mean = valid_entropies.mean().item()
+                
+                # 동적 임계값 업데이트 (모멘텀 적용)
+                self.running_entropy_mean = (
+                    self.threshold_momentum * self.running_entropy_mean + 
+                    (1 - self.threshold_momentum) * current_entropy_mean
+                )
+                
+                # 임계값을 평균값의 일정 비율로 설정 (예: 평균의 80%)
+                self.entropy_threshold = self.running_entropy_mean * 0.8
+            
+            self.threshold_update_count += 1
+            
+            # 디버깅 정보 출력 (처음 몇 번만)
+            if self.threshold_update_count <= 5:
+                print(f"🔄 동적 임계값 업데이트 #{self.threshold_update_count.item()}:")
+                if valid_box_mask.any():
+                    print(f"  - box_std: 평균={current_box_std_mean:.4f}, 임계값={self.box_std_threshold:.4f}")
+                if valid_entropy_mask.any():
+                    print(f"  - entropy: 평균={current_entropy_mean:.4f}, 임계값={self.entropy_threshold:.4f}")
+
+    def get_current_thresholds(self) -> Dict[str, float]:
+        """현재 동적 임계값들을 반환"""
+        return {
+            'box_std_threshold': self.box_std_threshold,
+            'entropy_threshold': self.entropy_threshold,
+            'update_count': self.threshold_update_count.item(),
+            'adaptive_enabled': self.adaptive_thresholds
+        }
+
+    def reset_adaptive_thresholds(self, box_std_threshold: float = None, entropy_threshold: float = None):
+        """동적 임계값을 초기값으로 리셋"""
+        if box_std_threshold is not None:
+            self.box_std_threshold = box_std_threshold
+            self.running_box_std_mean = torch.tensor(box_std_threshold)
+        
+        if entropy_threshold is not None:
+            self.entropy_threshold = entropy_threshold
+            self.running_entropy_mean = torch.tensor(entropy_threshold)
+        
+        self.threshold_update_count = torch.tensor(0)
+        print(f"🔄 동적 임계값 리셋: box_std={self.box_std_threshold:.4f}, entropy={self.entropy_threshold:.4f}")
 
     def save_prediction_analysis(self, epoch: int = None):
         """예측 분포 분석 결과를 저장 - 주석처리: 컴퓨터 멈춤 방지"""
@@ -584,8 +675,9 @@ class MCDropoutDetector:
                 
                 # 신뢰도 기반 필터링
                 conf_scores = all_predictions[..., 4]
+                # print(f"conf_scores: {conf_scores}")
                 confident_mask = conf_scores > self.conf_threshold
-                
+                # print(f"confident_mask: {confident_mask}")
                 # 박스와 클래스 분리
                 boxes = all_predictions[..., :4]  # (num_samples, batch, N, 4)
                 class_scores = all_predictions[..., 5:]  # (num_samples, batch, N, num_classes)
@@ -594,6 +686,35 @@ class MCDropoutDetector:
                 mean_boxes = torch.mean(boxes, dim=0)  # (batch, N, 4)
                 box_std = torch.std(boxes, dim=0)  # (batch, N, 4)
                 
+                # 박스 좌표 검증 및 수정
+                try:
+                    # 이미지 크기 추정 (박스 좌표에서)
+                    if mean_boxes.numel() > 0:
+                        max_coords = mean_boxes.max(dim=0)[0].max(dim=0)[0]
+                        estimated_img_size = (int(max_coords[1].item()), int(max_coords[0].item()))
+                    else:
+                        estimated_img_size = (640, 640)  # 기본값
+                    
+                    # 박스 좌표 검증
+                    for batch_idx in range(mean_boxes.shape[0]):
+                        batch_boxes = mean_boxes[batch_idx].cpu().numpy()
+                        validated_boxes, valid_mask = validate_box_coordinates(batch_boxes, estimated_img_size)
+                        
+                        # 유효한 박스만 유지
+                        if np.any(valid_mask):
+                            mean_boxes[batch_idx] = torch.from_numpy(validated_boxes[valid_mask]).to(mean_boxes.device)
+                            box_std[batch_idx] = box_std[batch_idx][valid_mask]
+                            confident_mask[0, batch_idx] = confident_mask[0, batch_idx][valid_mask]
+                        else:
+                            # 모든 박스가 유효하지 않은 경우 빈 텐서로 설정
+                            mean_boxes[batch_idx] = torch.empty(0, 4, device=mean_boxes.device)
+                            box_std[batch_idx] = torch.empty(0, 4, device=box_std.device)
+                            confident_mask[0, batch_idx] = torch.empty(0, dtype=torch.bool, device=confident_mask.device)
+                            
+                except Exception as e:
+                    print(f"⚠️ 박스 좌표 검증 중 오류 발생: {e}")
+                    # 검증 실패 시 원본 사용
+                
                 # 클래스 엔트로피 계산
                 mean_class_probs = torch.softmax(torch.mean(class_scores, dim=0), dim=-1)
                 eps = 1e-10
@@ -601,11 +722,27 @@ class MCDropoutDetector:
                 
                 # 결과 반환
                 results = []
+                batch_box_std_list = []
+                batch_entropy_list = []
                 for batch_idx in range(mean_boxes.shape[0]):
                     # 배치별 마스크 생성 (inplace operation 방지를 위해 복사)
+                    print(f"🔍 임계값 비교:")
+                    print(f"📦 필터링 전 전체 박스 수: {box_std[batch_idx].shape[0]}")
+                    # 기본 필터링 조건 적용
                     batch_mask = (box_std[batch_idx].mean(dim=-1) < self.box_std_threshold) & \
                                 (class_entropy[batch_idx] < self.entropy_threshold) & \
                                 confident_mask[0, batch_idx]
+                    # max_pseudo_labels에 따른 추가 필터링
+                    if hasattr(self, 'max_pseudo_labels') and self.max_pseudo_labels > 0:
+                        # confidence 점수로 정렬하여 상위 N개만 선택
+                        conf_scores_batch = conf_scores[0, batch_idx][batch_mask]
+                        if len(conf_scores_batch) > self.max_pseudo_labels:
+                            _, top_indices = torch.topk(conf_scores_batch, self.max_pseudo_labels)
+                            new_mask = torch.zeros_like(batch_mask)
+                            new_mask[torch.where(batch_mask)[0][top_indices]] = True
+                            batch_mask = new_mask
+                    print(f"✅ 필터링 후 남은 박스 수: {batch_mask.sum().item()}")
+                    
                     
                     # 클래스 예측 확률이 가장 높은 클래스 선택
                     class_probs = mean_class_probs[batch_idx].clone()  # 복사하여 inplace 방지
@@ -628,6 +765,19 @@ class MCDropoutDetector:
                     filtered_boxes = mean_boxes[batch_idx][batch_mask].clone()
                     filtered_scores = conf_scores[0, batch_idx][batch_mask].clone()
                     filtered_classes = predicted_classes[batch_mask].clone()
+                    filtered_box_std = box_std[batch_idx][batch_mask].clone()
+                    filtered_class_entropy = class_entropy[batch_idx][batch_mask].clone()
+                    
+                    # 박스 좌표 유효성 검사 및 클램핑 (마이너스 값 문제 해결)
+                    if filtered_boxes.numel() > 0:
+                        filtered_boxes = torch.clamp(filtered_boxes, 0.0, 1.0)
+                        valid_box_mask = (filtered_boxes[:, 2] >= 0.01) & (filtered_boxes[:, 3] >= 0.01)
+                        if not valid_box_mask.all():
+                            filtered_boxes = filtered_boxes[valid_box_mask]
+                            filtered_scores = filtered_scores[valid_box_mask]
+                            filtered_classes = filtered_classes[valid_box_mask]
+                            filtered_box_std = filtered_box_std[valid_box_mask]
+                            filtered_class_entropy = filtered_class_entropy[valid_box_mask]
                     
                     # 필터링된 클래스도 다시 한번 체크
                     if filtered_classes.numel() > 0:
@@ -640,17 +790,60 @@ class MCDropoutDetector:
                         'boxes': filtered_boxes,
                         'scores': filtered_scores,
                         'labels': filtered_classes,
-                        'box_std': box_std[batch_idx][batch_mask].clone(),
-                        'class_entropy': class_entropy[batch_idx][batch_mask].clone()
+                        'box_std': filtered_box_std,
+                        'class_entropy': filtered_class_entropy
                     }
                     results.append(result)
+                    # 동적 임계값 후보값 저장
+                    if filtered_box_std.numel() > 0:
+                        batch_box_std_list.append(filtered_box_std.mean().item())
+                    if filtered_class_entropy.numel() > 0:
+                        batch_entropy_list.append(filtered_class_entropy.mean().item())
+                
+                # === 동적 임계값 업데이트 ===
+                if batch_box_std_list:
+                    new_box_std_threshold = float(np.mean(batch_box_std_list))
+                    # 안전장치: 임계값이 너무 작아지지 않도록 제한
+                    min_box_std_threshold = 0.01  # 최소 임계값
+                    self.box_std_threshold = max(new_box_std_threshold, min_box_std_threshold)
+                else:
+                    # 필터링된 박스가 없는 경우: 전체 박스의 평균을 사용하여 임계값 완화
+                    if box_std.numel() > 0:
+                        overall_box_std_mean = box_std.mean().item()
+                        # 전체 평균의 1.5배로 임계값 설정 (더 관대하게)
+                        self.box_std_threshold = overall_box_std_mean * 1.5
+                        print(f"⚠️  필터링된 박스 없음 - 전체 평균 기반 임계값 설정: {self.box_std_threshold:.4f}")
+                
+                if batch_entropy_list:
+                    new_entropy_threshold = float(np.mean(batch_entropy_list))
+                    # 안전장치: 임계값이 너무 작아지지 않도록 제한
+                    min_entropy_threshold = 0.01  # 최소 임계값
+                    self.entropy_threshold = max(new_entropy_threshold, min_entropy_threshold)
+                else:
+                    # 필터링된 박스가 없는 경우: 전체 엔트로피의 평균을 사용하여 임계값 완화
+                    if class_entropy.numel() > 0:
+                        overall_entropy_mean = class_entropy.mean().item()
+                        # 전체 평균의 1.5배로 임계값 설정 (더 관대하게)
+                        self.entropy_threshold = overall_entropy_mean * 1.5
+                        print(f"⚠️  필터링된 박스 없음 - 전체 평균 기반 임계값 설정: {self.entropy_threshold:.4f}")
+                
+                print(f"[Dynamic] box_std_threshold: {self.box_std_threshold:.4f}, entropy_threshold: {self.entropy_threshold:.4f}")
+                
+                # 추가 안전장치: 여전히 필터링된 박스가 없는 경우 임계값을 더 완화
+                total_filtered_boxes = sum(len(result['boxes']) for result in results)
+                if total_filtered_boxes == 0:
+                    print("🚨 모든 배치에서 필터링된 박스가 0개 - 임계값을 더 완화합니다")
+                    # 임계값을 2배로 완화
+                    self.box_std_threshold *= 2.0
+                    self.entropy_threshold *= 2.0
+                    print(f"[Emergency] box_std_threshold: {self.box_std_threshold:.4f}, entropy_threshold: {self.entropy_threshold:.4f}")
+                    
+                    # 재필터링 시도 (선택적)
+                    # results = self._refilter_with_relaxed_thresholds(mean_boxes, box_std, class_entropy, conf_scores, predicted_classes, num_classes)
                 
                 # 예측 히스토리에 저장 - 메모리 절약을 위해 제한적으로 저장
                 if save_predictions and len(self.uncertainty_history) < 10:  # 최대 10개만 저장
                     self.uncertainty_history.append(results)
-                    # Raw predictions는 저장하지 않음 (메모리 절약)
-                    # self.prediction_history.append([pred.detach().cpu() for pred in processed_predictions])
-                
                 return results
                 
             except RuntimeError as e:
@@ -804,6 +997,7 @@ class MCDropoutDetector:
         result = self.predict_with_uncertainty_legacy(image, device, save_predictions)
         
         if result is None:
+            print("❌ predict_with_uncertainty_legacy가 None을 반환했습니다")
             return None
         
         # 결과에 추가 정보 추가 (기존 구조 유지)
@@ -823,7 +1017,8 @@ class MCDropoutDetector:
                 }
             }
             enhanced_results.append(enhanced_result)
-        
+        # print("="*80)
+        # print("enhanced_results: ", enhanced_results)
         return enhanced_results
 
 class MCLoss(nn.Module):

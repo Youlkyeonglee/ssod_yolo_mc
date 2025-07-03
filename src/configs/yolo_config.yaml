@@ -2,12 +2,12 @@ model:
   version: "v8"  # v8, v9, v10, v11, v12
   size: "m"      # n, s, m, l, x
   task: "detect" # detect, segment, pose, classify
-  pretrained: true
+  pretrained: false  # pre-trained 가중치 사용하지 않음
   name: "yolov8m"
   dropout:
     enabled: true
+    num_samples: 10
     rate: 0.1
-    num_samples: 5
   
   # 🎯 Feature Alignment 실험 설정
   feature_alignment:
@@ -27,7 +27,6 @@ model:
 
 inference:
   conf_threshold: 0.25
-  device: null  # null for auto-detection, or specify 'cpu', 'cuda:0', etc.
   
 # GPU 및 분산 학습 설정
 gpu:
@@ -40,9 +39,6 @@ gpu:
   distributed:
     enabled: true                  # 분산 학습 활성화 여부
     backend: "nccl"               # 분산 백엔드 (nccl, gloo)
-    world_size: null              # 전체 프로세스 수 (null일 경우 자동 설정)
-    rank: null                    # 현재 프로세스 순위 (null일 경우 자동 설정)
-    local_rank: null              # 로컬 프로세스 순위 (null일 경우 자동 설정)
     master_addr: "localhost"      # 마스터 노드 주소
     master_port: "12355"          # 마스터 노드 포트
     
@@ -69,7 +65,7 @@ data:
   
   # 데이터셋 구조
   format: "yolo"  # 데이터셋 형식 (yolo, coco, voc 등)
-  
+  max_samples: null
   # 클래스 설정
   nc: 80  # number of classes
   names: ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", 
@@ -80,20 +76,12 @@ data:
           "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", 
           "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", 
           "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]  # COCO 데이터셋의 80개 클래스
-  # names: ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", 
-  #         "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", 
-  #         "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", 
-  #         "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", 
-  #         "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", 
-  #         "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", 
-  #         "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", 
-  #         "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
+  
   # 이미지 설정
   img_size: 640  # 입력 이미지 크기
   batch_size: 16  # 배치 크기
   num_workers: 0  # DataLoader 멀티프로세싱 비활성화 (에러 방지)
   augment: true  # 데이터 증강 사용 여부
-  max_samples: null  # 테스트용: 빠른 실험을 위해 10개 샘플만 사용
   labeled_ratio: 10.0  # 레이블된 데이터 비율 (1, 2, 5, 10)
   seed: 1 # 데이터 분포 시드 (1,2,3,4,5)
   
@@ -121,49 +109,71 @@ data:
       cutout:
         n_holes: 1
         length: 32
+inference:
+  device: null
 
 training:
   # 학습 파라미터
-  epochs: 20  # 테스트용: 빠른 실험을 위해 3 에포크만 실행
-  mature_epoch: 5  # pseudo label 시작: 초기 supervised 학습 후 semi-supervised 전환
-  batch_size: 16
-  img_size: 640
+  epochs: 20
   learning_rate: 0.001
   weight_decay: 0.0005
   momentum: 0.937
   warmup_epochs: 3
   warmup_momentum: 0.8
   warmup_bias_lr: 0.1
-  uncertainty_weight: 5.0  # 불확실성 가중치 (50.0→5.0: 10배 감소로 안정화)
   
-  # MC Loss 설정 (새로운 불확실성 기반 손실 함수)
-  mc_loss:
-    alpha: 1.0              # Epistemic uncertainty weight
-    beta: 0.5               # Predictive variance weight
-    gamma: 0.3              # Entropy regularization weight  
-    temperature: 1.0        # Temperature scaling for uncertainty
-    adaptive_weighting: true # 학습 진행에 따른 적응적 가중치 조정
+  # 저장 설정
+  save_interval: 1  # 매 에포크마다 저장 및 평가
+  val_interval: 5      # 매 에포크마다 검증
+  checkpoint_dir: "checkpoints"
   
-  # Loss 가중치 설정
+  # Semi-supervised 학습 설정
   loss_weights:
-    # Supervised YOLO Loss 설정
     supervised:
-      box_loss_gain: 7.5        # bbox regression loss 가중치 (CIoU)
-      cls_loss_gain: 0.5        # classification loss 가중치 (Cross Entropy)
-      obj_loss_gain: 1.0        # objectness loss 가중치 (Binary CE)
-      bbox_loss_type: "ciou"    # bbox loss 타입 (ciou, giou, diou, iou)
-      focal_loss_gamma: 0.0     # focal loss gamma (0.0: 표준 Cross Entropy)
-      label_smoothing: 0.0      # label smoothing 비율 (0.0-1.0)
-    
-    # Semi-Supervised YOLO Loss 설정  
+      box_loss_gain: 7.5
+      cls_loss_gain: 0.5
+      obj_loss_gain: 1.0
+      bbox_loss_type: "ciou"
+      focal_loss_gamma: 0.0
+      label_smoothing: 0.0
     semi_supervised:
-      box_loss_gain: 7.5        # bbox regression loss 가중치
-      cls_loss_gain: 0.5        # classification loss 가중치
-      obj_loss_gain: 1.0        # objectness loss 가중치
-      uncertainty_alpha: 5.0    # 불확실성 기반 가중치 조정
-      bbox_loss_type: "ciou"    # bbox loss 타입
-      focal_loss_gamma: 0.0     # focal loss gamma
-      label_smoothing: 0.0      # label smoothing 비율
+      enabled: true
+      pseudo_label_start_epoch: 5  # 의사 레이블링 시작 에포크
+      unlabeled_weight: 0.5      # unlabeled 데이터 손실 가중치
+      pseudo_label_weight: 0.5   # pseudo label 가중치 (호환성)
+      conf_threshold: 0.1           # 의사 레이블 신뢰도 임계값
+      max_pseudo_labels: 2000       # 최대 의사 레이블 개수 (null: 제한 없음)
+      
+      # 🎯 분포 기반 Consistency Loss 설정
+      consistency_loss_type: "kl_divergence"  # 'kl_divergence', 'js_divergence', 'kl_js_combined', 'wasserstein', 'cosine'
+      consistency_temperature: 3.0            # Temperature scaling for softmax distributions
+      bbox_consistency_weight: 1.0            # BBox coordinates consistency 가중치
+      class_consistency_weight: 1.0           # Class logits consistency 가중치
+      
+      # 🎯 MC Dropout Consistency Loss 설정 (신규) - 임시 비활성화
+      mc_consistency_weight: 0.0              # MC Consistency Loss 가중치 (임시 비활성화)
+      mc_consistency_alpha: 1.0               # Pseudo label consistency weight
+      mc_consistency_beta: 0.5                # MC uncertainty regularization weight
+      mc_consistency_temperature: 1.0         # Temperature scaling for uncertainty
+      mc_uncertainty_threshold: 0.1           # 불확실성 임계값
+      mc_use_adaptive_weighting: true         # 적응적 가중치 사용 여부
+      obj_consistency_weight: 1.0             # Objectness consistency 가중치
+      
+      # MC Dropout 설정
+      uncertainty:
+        box_std_threshold: 5.0           # bbox 표준편차/불확실성 임계값
+        entropy_threshold: 5.0           # 클래스 예측 불확실성/엔트로피 임계값
+        min_detections: 3              # 유효한 의사 레이블로 간주하기 위한 최소 탐지 횟수
+        confidence_threshold: 0.1       # 신뢰도 임계값
+        reliability_threshold: 0.3      # 다층 신뢰도 평가 임계값
+        # 동적 임계값 설정
+        adaptive_thresholds: true       # 동적 임계값 조정 활성화
+        threshold_momentum: 0.9         # 임계값 업데이트 모멘텀 (0.9 = 90% 이전값 + 10% 새값)
+        threshold_ratio: 0.8            # 평균값 대비 임계값 비율 (0.8 = 평균의 80%)
+      uncertainty_weight: 5.0           # pseudo label loss 가중치
+      uncertainty_alpha: 5.0            # 불확실성 기반 가중치 조정
+      consistency_weight: 0.1           # MC consistency loss 가중치
+      num_mc_samples: 10                # MC Dropout 샘플링 횟수
   
   # 옵티마이저 설정
   optimizer:
@@ -179,56 +189,6 @@ training:
     warmup_momentum: 0.8
     warmup_bias_lr: 0.1
   
-  # 저장 설정
-  save_interval: 1  # 매 에포크마다 저장 및 평가 (테스트용)
-  val_interval: 5      # 매 에포크마다 검증 (테스트용)
-  checkpoint_dir: "checkpoints"
-  
-  # Semi-supervised 학습 설정
-  semi_supervised:
-    enabled: true
-    pseudo_label_start_epoch: 5  # 의사 레이블링 시작 에포크
-    unlabeled_weight: 0.5      # unlabeled 데이터 손실 가중치
-    pseudo_label_weight: 0.5   # pseudo label 가중치 (호환성)
-    conf_threshold: 0.5           # 의사 레이블 신뢰도 임계값
-    max_pseudo_labels: 2000       # 최대 의사 레이블 개수 (null: 제한 없음)
-    
-    # 🎯 분포 기반 Consistency Loss 설정
-    consistency_loss_type: "kl_divergence"  # 'kl_divergence', 'js_divergence', 'kl_js_combined', 'wasserstein', 'cosine'
-    consistency_temperature: 3.0            # Temperature scaling for softmax distributions
-    bbox_consistency_weight: 1.0            # BBox coordinates consistency 가중치
-    class_consistency_weight: 1.0           # Class logits consistency 가중치
-    
-    # 🎯 MC Dropout Consistency Loss 설정 (신규) - 임시 비활성화
-    mc_consistency_weight: 0.0              # MC Consistency Loss 가중치 (임시 비활성화)
-    mc_consistency_alpha: 1.0               # Pseudo label consistency weight
-    mc_consistency_beta: 0.5                # MC uncertainty regularization weight
-    mc_consistency_temperature: 1.0         # Temperature scaling for uncertainty
-    mc_uncertainty_threshold: 0.1           # 불확실성 임계값
-    mc_use_adaptive_weighting: true         # 적응적 가중치 사용 여부
-    obj_consistency_weight: 1.0             # Objectness consistency 가중치
-    
-    # MC Dropout 설정
-    uncertainty:
-      box_std_threshold: 0.1          # bbox 표준편차/불확실성 임계값
-      entropy_threshold: 0.5          # 클래스 예측 불확실성/엔트로피 임계값
-      min_detections: 3              # 유효한 의사 레이블로 간주하기 위한 최소 탐지 횟수
-      confidence_threshold: 0.7       # 신뢰도 임계값
-      reliability_threshold: 0.5      # 다층 신뢰도 평가 임계값 (0.0-1.0)
-    uncertainty_weight: 5.0           # pseudo label loss 가중치 (50.0에서 조정)
-    uncertainty_alpha: 5.0            # 불확실성 기반 가중치 조정 (10.0에서 조정)
-    consistency_weight: 0.1           # MC consistency loss 가중치
-    num_mc_samples: 10                # MC Dropout 샘플링 횟수
-  
-  # Feature Alignment 설정
-  feature_alignment:
-    weight: 0.1             # feature alignment loss 가중치
-    levels: ['P3', 'P4', 'P5']  # alignment할 feature levels
-  
-  # EMA (Exponential Moving Average) 설정
-  ema:
-    decay: 0.999            # teacher 모델 EMA decay rate
-    
   # Gradient clipping
   grad_clip:
     max_norm: 10.0          # gradient clipping threshold

@@ -1,605 +1,63 @@
-nohup: ignoring input
-사용 가능한 GPU: [0, 1, 2, 3]
-분산 학습 사용: True
-사용할 포트: 12355
-분산 학습 시작: 4개 프로세스
-2025-07-02 15:46:09,056 - train - INFO - Results will be saved to: runs/train/yolov8m_label_p10.0_2
-2025-07-02 15:46:09,056 - train - INFO - 사용 가능한 GPU 수: 4
-2025-07-02 15:46:09,056 - train - INFO -   GPU 0: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,056 - train - INFO -   GPU 1: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,056 - train - INFO -   GPU 2: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,056 - train - INFO -   GPU 3: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,084 - train - INFO - Results will be saved to: runs/train/yolov8m_label_p10.0_3
-2025-07-02 15:46:09,084 - train - INFO - 사용 가능한 GPU 수: 4
-2025-07-02 15:46:09,085 - train - INFO -   GPU 0: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,085 - train - INFO -   GPU 1: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,085 - train - INFO -   GPU 2: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,085 - train - INFO -   GPU 3: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,090 - train - INFO - Results will be saved to: runs/train/yolov8m_label_p10.0_4
-2025-07-02 15:46:09,090 - train - INFO - 사용 가능한 GPU 수: 4
-2025-07-02 15:46:09,091 - train - INFO -   GPU 0: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,091 - train - INFO -   GPU 1: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,091 - train - INFO -   GPU 2: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,091 - train - INFO -   GPU 3: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,092 - train - INFO - Results will be saved to: runs/train/yolov8m_label_p10.0_5
-2025-07-02 15:46:09,092 - train - INFO - 사용 가능한 GPU 수: 4
-2025-07-02 15:46:09,092 - train - INFO -   GPU 0: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,092 - train - INFO -   GPU 1: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,092 - train - INFO -   GPU 2: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:09,092 - train - INFO -   GPU 3: NVIDIA A100-PCIE-40GB (39.5GB)
-2025-07-02 15:46:11,706 - train - INFO - 🔄 EMA Teacher 업데이트 활성화: decay=0.999
-2025-07-02 15:46:11,707 - train - INFO - 🔄 EMA Teacher 업데이트 활성화: decay=0.999
-2025-07-02 15:46:11,708 - train - INFO - 🔄 EMA Teacher 업데이트 활성화: decay=0.999
-2025-07-02 15:46:11,710 - train - INFO - === 데이터셋 초기화 시작 ===
-2025-07-02 15:46:11,710 - train - INFO - Labeled 비율: 10.0%, 시드: 1
-2025-07-02 15:46:11,710 - train - INFO - ⚠️  테스트 모드: 최대 20개 샘플 사용
-2025-07-02 15:46:11,711 - train - INFO - === 데이터셋 초기화 시작 ===
-2025-07-02 15:46:11,711 - train - INFO - Labeled 비율: 10.0%, 시드: 1
-2025-07-02 15:46:11,711 - train - INFO - ⚠️  테스트 모드: 최대 20개 샘플 사용
-2025-07-02 15:46:11,713 - train - INFO - === 데이터셋 초기화 시작 ===
-2025-07-02 15:46:11,713 - train - INFO - Labeled 비율: 10.0%, 시드: 1
-2025-07-02 15:46:11,713 - train - INFO - ⚠️  테스트 모드: 최대 20개 샘플 사용
-2025-07-02 15:46:11,716 - train - INFO - 🔄 EMA Teacher 업데이트 활성화: decay=0.999
-2025-07-02 15:46:11,726 - train - INFO - === 데이터셋 초기화 시작 ===
-2025-07-02 15:46:11,726 - train - INFO - Labeled 비율: 10.0%, 시드: 1
-2025-07-02 15:46:11,726 - train - INFO - ⚠️  테스트 모드: 최대 20개 샘플 사용
-2025-07-02 15:46:16,410 - train - INFO - ✓ Labeled 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,410 - train - INFO - ✓ Unlabeled 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,410 - train - INFO - ✓ Validation 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,410 - train - INFO - === 데이터 로더 샘플 테스트 ===
-2025-07-02 15:46:16,498 - train - INFO - ✓ Labeled 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,498 - train - INFO - ✓ Unlabeled 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,498 - train - INFO - ✓ Validation 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,498 - train - INFO - === 데이터 로더 샘플 테스트 ===
-2025-07-02 15:46:16,514 - train - INFO - ✓ Labeled 배치 테스트 성공: 이미지 torch.Size([5, 3, 640, 640]), 레이블 5개
-2025-07-02 15:46:16,514 - train - INFO -   - 유효한 레이블: 5/5 이미지
-2025-07-02 15:46:16,514 - train - INFO -   - 총 객체 수: 24
-2025-07-02 15:46:16,528 - train - INFO - ✓ Labeled 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,529 - train - INFO - ✓ Unlabeled 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,529 - train - INFO - ✓ Validation 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,529 - train - INFO - === 데이터 로더 샘플 테스트 ===
-2025-07-02 15:46:16,612 - train - INFO - ✓ Unlabeled 배치 테스트 성공: 이미지 torch.Size([5, 3, 640, 640])
-2025-07-02 15:46:16,612 - train - INFO - === 데이터셋 초기화 완료 ===
-2025-07-02 15:46:16,613 - train - INFO - === GT 데이터 시각화 건너뜀 (학습 진행 우선) ===
-2025-07-02 15:46:16,613 - train - WARNING - GT 데이터 시각화가 hang 현상을 일으켜서 일시적으로 비활성화되었습니다.
-2025-07-02 15:46:16,613 - train - INFO - 학습이 완료된 후 별도로 시각화를 실행할 수 있습니다.
-2025-07-02 15:46:16,613 - train - INFO - Starting training...
-2025-07-02 15:46:16,613 - train - INFO - 
-🔄 Starting Epoch 1/2
-2025-07-02 15:46:16,614 - train - INFO - ✓ Labeled 배치 테스트 성공: 이미지 torch.Size([5, 3, 640, 640]), 레이블 5개
-2025-07-02 15:46:16,614 - train - INFO -   - 유효한 레이블: 5/5 이미지
-2025-07-02 15:46:16,614 - train - INFO -   - 총 객체 수: 57
-🚀 워커 1/4 시작 (GPU: [0, 1, 2, 3])
-🔧 워커 1: 디바이스 cuda:1 설정 완료
-📚 워커 1: 학습 시작
-사용 가능한 GPU: [0, 1, 2, 3]
-분산 학습 사용: True
-주요 디바이스: cuda:0
-🔧 Creating student model...
-✓ Successfully set model classes to 80
-🎯 Adding MC Dropout to student model...
-👨‍🏫 Creating teacher model as exact copy of student...
-✅ Teacher created via deep copy
-🔧 Removing MC Dropout hooks from teacher model...
-✅ Removed 84 MC Dropout hooks from model
-🔍 Verifying teacher-student model synchronization...
-✅ All 244 parameters have matching shapes
-✅ EMA enabled: All parameters compatible
-Loading labeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_labeled_data.txt
-Loading unlabeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_unlabeled_data.txt
-COCO 학습 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/train2017
-COCO Unlabeled 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/unlabeled2017
-
-=== 레이블 데이터 검증 ===
-데이터 루트: /media/oem/personal_vol/yklee/data/COCO/train2017
-이미지 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/images (존재: True)
-레이블 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/labels (존재: True)
-이미지 파일 수: 118287
-레이블 파일 수: 118287
-✓ 000000475744.txt: 5 객체, 5 차원
-✓ 000000521692.txt: 3 객체, 5 차원
-✓ 000000565128.txt: 20 객체, 5 차원
-==================================================
-
-=== Labeled 데이터셋 초기화 ===
-Sample image path: /media/oem/personal_vol/yklee/data/COCO/train2017/images/000000222564.jpg
-Sample label path: /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000222564.txt
-Invalid bbox size in /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000550395.txt object 14: width=0.009, height=0.000 (non-positive)
-Filtered dataset: 11284 images with valid labels out of 11285 total images
-⚠️  1개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
-✓ Labeled 데이터셋: 20 샘플
-
-=== Unlabeled 데이터셋 초기화 ===
-✓ Unlabeled 데이터셋: 20 샘플
-
-=== Validation 데이터셋 초기화 ===
-Sample image path: /media/oem/personal_vol/yklee/data/COCO/val2017/images/000000074733.jpg
-Sample label path: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000074733.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000270386.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000382734.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000477118.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000176701.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000370999.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000267946.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000461275.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000226111.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000556498.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000447789.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000481404.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000041488.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000528977.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000330554.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000404601.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000261796.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000260657.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000344611.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000064574.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000278006.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000098497.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000058636.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000268996.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000514540.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000560371.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000049091.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000240767.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000121153.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000127135.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000476491.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000312549.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000458790.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000228771.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000308391.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000536343.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000502910.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000542073.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000042888.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000550939.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000101022.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000402096.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000198915.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000200152.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000374727.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000025593.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000310622.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000173183.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000320706.txt
-Filtered dataset: 4952 images with valid labels out of 5000 total images
-⚠️  48개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
-✓ Validation 데이터셋: 20 샘플
-Epoch 0:   0%|          | 0/1 [00:00<?, ?it/s]2025-07-02 15:46:16,636 - train - INFO - ✓ Labeled 배치 테스트 성공: 이미지 torch.Size([5, 3, 640, 640]), 레이블 5개
-2025-07-02 15:46:16,636 - train - INFO -   - 유효한 레이블: 5/5 이미지
-2025-07-02 15:46:16,636 - train - INFO -   - 총 객체 수: 51
-2025-07-02 15:46:16,713 - train - INFO - ✓ Unlabeled 배치 테스트 성공: 이미지 torch.Size([5, 3, 640, 640])
-2025-07-02 15:46:16,713 - train - INFO - === 데이터셋 초기화 완료 ===
-2025-07-02 15:46:16,713 - train - INFO - === GT 데이터 시각화 건너뜀 (학습 진행 우선) ===
-2025-07-02 15:46:16,713 - train - WARNING - GT 데이터 시각화가 hang 현상을 일으켜서 일시적으로 비활성화되었습니다.
-2025-07-02 15:46:16,714 - train - INFO - 학습이 완료된 후 별도로 시각화를 실행할 수 있습니다.
-2025-07-02 15:46:16,714 - train - INFO - Starting training...
-2025-07-02 15:46:16,714 - train - INFO - 
-🔄 Starting Epoch 1/2
-🚀 워커 3/4 시작 (GPU: [0, 1, 2, 3])
-🔧 워커 3: 디바이스 cuda:3 설정 완료
-📚 워커 3: 학습 시작
-사용 가능한 GPU: [0, 1, 2, 3]
-분산 학습 사용: True
-주요 디바이스: cuda:0
-🔧 Creating student model...
-✓ Successfully set model classes to 80
-🎯 Adding MC Dropout to student model...
-👨‍🏫 Creating teacher model as exact copy of student...
-✅ Teacher created via deep copy
-🔧 Removing MC Dropout hooks from teacher model...
-✅ Removed 84 MC Dropout hooks from model
-🔍 Verifying teacher-student model synchronization...
-✅ All 244 parameters have matching shapes
-✅ EMA enabled: All parameters compatible
-Loading labeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_labeled_data.txt
-Loading unlabeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_unlabeled_data.txt
-COCO 학습 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/train2017
-COCO Unlabeled 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/unlabeled2017
-
-=== 레이블 데이터 검증 ===
-데이터 루트: /media/oem/personal_vol/yklee/data/COCO/train2017
-이미지 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/images (존재: True)
-레이블 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/labels (존재: True)
-이미지 파일 수: 118287
-레이블 파일 수: 118287
-✓ 000000475744.txt: 5 객체, 5 차원
-✓ 000000521692.txt: 3 객체, 5 차원
-✓ 000000565128.txt: 20 객체, 5 차원
-==================================================
-
-=== Labeled 데이터셋 초기화 ===
-Sample image path: /media/oem/personal_vol/yklee/data/COCO/train2017/images/000000222564.jpg
-Sample label path: /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000222564.txt
-Invalid bbox size in /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000550395.txt object 14: width=0.009, height=0.000 (non-positive)
-Filtered dataset: 11284 images with valid labels out of 11285 total images
-⚠️  1개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
-✓ Labeled 데이터셋: 20 샘플
-
-=== Unlabeled 데이터셋 초기화 ===
-✓ Unlabeled 데이터셋: 20 샘플
-
-=== Validation 데이터셋 초기화 ===
-Sample image path: /media/oem/personal_vol/yklee/data/COCO/val2017/images/000000074733.jpg
-Sample label path: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000074733.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000270386.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000382734.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000477118.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000176701.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000370999.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000267946.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000461275.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000226111.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000556498.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000447789.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000481404.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000041488.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000528977.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000330554.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000404601.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000261796.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000260657.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000344611.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000064574.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000278006.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000098497.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000058636.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000268996.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000514540.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000560371.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000049091.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000240767.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000121153.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000127135.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000476491.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000312549.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000458790.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000228771.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000308391.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000536343.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000502910.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000542073.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000042888.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000550939.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000101022.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000402096.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000198915.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000200152.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000374727.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000025593.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000310622.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000173183.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000320706.txt
-Filtered dataset: 4952 images with valid labels out of 5000 total images
-⚠️  48개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
-✓ Validation 데이터셋: 20 샘플
-Epoch 0:   0%|          | 0/1 [00:00<?, ?it/s]2025-07-02 15:46:16,729 - train - INFO - ✓ Unlabeled 배치 테스트 성공: 이미지 torch.Size([5, 3, 640, 640])
-2025-07-02 15:46:16,729 - train - INFO - === 데이터셋 초기화 완료 ===
-2025-07-02 15:46:16,730 - train - INFO - === GT 데이터 시각화 건너뜀 (학습 진행 우선) ===
-2025-07-02 15:46:16,730 - train - WARNING - GT 데이터 시각화가 hang 현상을 일으켜서 일시적으로 비활성화되었습니다.
-2025-07-02 15:46:16,730 - train - INFO - 학습이 완료된 후 별도로 시각화를 실행할 수 있습니다.
-2025-07-02 15:46:16,730 - train - INFO - Starting training...
-2025-07-02 15:46:16,730 - train - INFO - 
-🔄 Starting Epoch 1/2
-🚀 워커 2/4 시작 (GPU: [0, 1, 2, 3])
-🔧 워커 2: 디바이스 cuda:2 설정 완료
-📚 워커 2: 학습 시작
-사용 가능한 GPU: [0, 1, 2, 3]
-분산 학습 사용: True
-주요 디바이스: cuda:0
-🔧 Creating student model...
-✓ Successfully set model classes to 80
-🎯 Adding MC Dropout to student model...
-👨‍🏫 Creating teacher model as exact copy of student...
-✅ Teacher created via deep copy
-🔧 Removing MC Dropout hooks from teacher model...
-✅ Removed 84 MC Dropout hooks from model
-🔍 Verifying teacher-student model synchronization...
-✅ All 244 parameters have matching shapes
-✅ EMA enabled: All parameters compatible
-Loading labeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_labeled_data.txt
-Loading unlabeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_unlabeled_data.txt
-COCO 학습 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/train2017
-COCO Unlabeled 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/unlabeled2017
-
-=== 레이블 데이터 검증 ===
-데이터 루트: /media/oem/personal_vol/yklee/data/COCO/train2017
-이미지 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/images (존재: True)
-레이블 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/labels (존재: True)
-이미지 파일 수: 118287
-레이블 파일 수: 118287
-✓ 000000475744.txt: 5 객체, 5 차원
-✓ 000000521692.txt: 3 객체, 5 차원
-✓ 000000565128.txt: 20 객체, 5 차원
-==================================================
-
-=== Labeled 데이터셋 초기화 ===
-Sample image path: /media/oem/personal_vol/yklee/data/COCO/train2017/images/000000222564.jpg
-Sample label path: /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000222564.txt
-Invalid bbox size in /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000550395.txt object 14: width=0.009, height=0.000 (non-positive)
-Filtered dataset: 11284 images with valid labels out of 11285 total images
-⚠️  1개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
-✓ Labeled 데이터셋: 20 샘플
-
-=== Unlabeled 데이터셋 초기화 ===
-✓ Unlabeled 데이터셋: 20 샘플
-
-=== Validation 데이터셋 초기화 ===
-Sample image path: /media/oem/personal_vol/yklee/data/COCO/val2017/images/000000074733.jpg
-Sample label path: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000074733.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000270386.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000382734.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000477118.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000176701.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000370999.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000267946.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000461275.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000226111.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000556498.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000447789.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000481404.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000041488.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000528977.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000330554.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000404601.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000261796.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000260657.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000344611.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000064574.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000278006.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000098497.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000058636.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000268996.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000514540.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000560371.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000049091.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000240767.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000121153.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000127135.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000476491.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000312549.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000458790.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000228771.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000308391.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000536343.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000502910.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000542073.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000042888.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000550939.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000101022.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000402096.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000198915.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000200152.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000374727.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000025593.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000310622.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000173183.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000320706.txt
-Filtered dataset: 4952 images with valid labels out of 5000 total images
-⚠️  48개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
-✓ Validation 데이터셋: 20 샘플
-Epoch 0:   0%|          | 0/1 [00:00<?, ?it/s]2025-07-02 15:46:16,952 - train - INFO - ✓ Labeled 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,952 - train - INFO - ✓ Unlabeled 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,952 - train - INFO - ✓ Validation 데이터: 20 샘플, 1 배치
-2025-07-02 15:46:16,952 - train - INFO - === 데이터 로더 샘플 테스트 ===
-2025-07-02 15:46:17,070 - train - INFO - ✓ Labeled 배치 테스트 성공: 이미지 torch.Size([5, 3, 640, 640]), 레이블 5개
-2025-07-02 15:46:17,071 - train - INFO -   - 유효한 레이블: 5/5 이미지
-2025-07-02 15:46:17,071 - train - INFO -   - 총 객체 수: 40
-2025-07-02 15:46:17,171 - train - INFO - ✓ Unlabeled 배치 테스트 성공: 이미지 torch.Size([5, 3, 640, 640])
-2025-07-02 15:46:17,171 - train - INFO - === 데이터셋 초기화 완료 ===
-2025-07-02 15:46:17,171 - train - INFO - === GT 데이터 시각화 건너뜀 (학습 진행 우선) ===
-2025-07-02 15:46:17,171 - train - WARNING - GT 데이터 시각화가 hang 현상을 일으켜서 일시적으로 비활성화되었습니다.
-2025-07-02 15:46:17,171 - train - INFO - 학습이 완료된 후 별도로 시각화를 실행할 수 있습니다.
-2025-07-02 15:46:17,171 - train - INFO - Starting training...
-2025-07-02 15:46:17,171 - train - INFO - 
-🔄 Starting Epoch 1/2
-🚀 워커 0/4 시작 (GPU: [0, 1, 2, 3])
-🔧 워커 0: 디바이스 cuda:0 설정 완료
-📚 워커 0: 학습 시작
-사용 가능한 GPU: [0, 1, 2, 3]
-분산 학습 사용: True
-주요 디바이스: cuda:0
-🔧 Creating student model...
-✓ Successfully set model classes to 80
-🎯 Adding MC Dropout to student model...
-👨‍🏫 Creating teacher model as exact copy of student...
-✅ Teacher created via deep copy
-🔧 Removing MC Dropout hooks from teacher model...
-✅ Removed 84 MC Dropout hooks from model
-🔍 Verifying teacher-student model synchronization...
-✅ All 244 parameters have matching shapes
-✅ EMA enabled: All parameters compatible
-Loading labeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_labeled_data.txt
-Loading unlabeled data from: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised/COCO_train2017_p10.0_s1_unlabeled_data.txt
-COCO 학습 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/train2017
-COCO Unlabeled 데이터 경로: /media/oem/personal_vol/yklee/data/COCO/unlabeled2017
-
-=== 레이블 데이터 검증 ===
-데이터 루트: /media/oem/personal_vol/yklee/data/COCO/train2017
-이미지 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/images (존재: True)
-레이블 디렉토리: /media/oem/personal_vol/yklee/data/COCO/train2017/labels (존재: True)
-이미지 파일 수: 118287
-레이블 파일 수: 118287
-✓ 000000475744.txt: 5 객체, 5 차원
-✓ 000000521692.txt: 3 객체, 5 차원
-✓ 000000565128.txt: 20 객체, 5 차원
-==================================================
-
-=== Labeled 데이터셋 초기화 ===
-Sample image path: /media/oem/personal_vol/yklee/data/COCO/train2017/images/000000222564.jpg
-Sample label path: /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000222564.txt
-Invalid bbox size in /media/oem/personal_vol/yklee/data/COCO/train2017/labels/000000550395.txt object 14: width=0.009, height=0.000 (non-positive)
-Filtered dataset: 11284 images with valid labels out of 11285 total images
-⚠️  1개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
-✓ Labeled 데이터셋: 20 샘플
-
-=== Unlabeled 데이터셋 초기화 ===
-✓ Unlabeled 데이터셋: 20 샘플
-
-=== Validation 데이터셋 초기화 ===
-Sample image path: /media/oem/personal_vol/yklee/data/COCO/val2017/images/000000074733.jpg
-Sample label path: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000074733.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000270386.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000382734.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000477118.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000176701.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000370999.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000267946.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000461275.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000226111.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000556498.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000447789.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000481404.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000041488.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000528977.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000330554.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000404601.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000261796.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000260657.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000344611.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000064574.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000278006.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000098497.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000058636.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000268996.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000514540.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000560371.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000049091.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000240767.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000121153.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000127135.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000476491.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000312549.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000458790.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000228771.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000308391.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000536343.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000502910.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000542073.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000042888.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000550939.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000101022.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000402096.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000198915.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000200152.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000374727.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000025593.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000310622.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000173183.txt
-Label file not found: /media/oem/personal_vol/yklee/data/COCO/val2017/labels/000000320706.txt
-Filtered dataset: 4952 images with valid labels out of 5000 total images
-⚠️  48개 이미지가 유효하지 않은 레이블로 인해 필터링되었습니다.
-✓ Validation 데이터셋: 20 샘플
-Epoch 0:   0%|          | 0/1 [00:00<?, ?it/s]Epoch 1/2 | Batch 1/1 | Loss: 18.6846 | Box: 9.132 | Cls: 6.789 | Obj: 0.974 | Align: 0.680:   0%|          | 0/1 [00:02<?, ?it/s]Epoch 1/2 | Batch 1/1 | Loss: 18.6846 | Box: 10.882 | Cls: 8.133 | Obj: 0.973 | Align: 0.678:   0%|          | 0/1 [00:02<?, ?it/s]Epoch 1/2 | Batch 1/1 | Loss: 18.6846 | Box: 10.473 | Cls: 7.739 | Obj: 0.974 | Align: 0.678:   0%|          | 0/1 [00:02<?, ?it/s]Epoch 1/2 | Batch 1/1 | Loss: 18.6846 | Box: 9.132 | Cls: 6.789 | Obj: 0.974 | Align: 0.680: 100%|██████████| 1/1 [00:02<00:00,  2.18s/it]Epoch 1/2 | Batch 1/1 | Loss: 18.6846 | Box: 10.882 | Cls: 8.133 | Obj: 0.973 | Align: 0.678: 100%|██████████| 1/1 [00:02<00:00,  2.08s/it]Epoch 1/2 | Batch 1/1 | Loss: 18.6846 | Box: 10.473 | Cls: 7.739 | Obj: 0.974 | Align: 0.678: 100%|██████████| 1/1 [00:02<00:00,  2.06s/it]                                                                                                                                                                                                                                                                                                                                                                                                                                Epoch 1/2 | Batch 1/1 | Loss: 18.6846 | Box: 9.925 | Cls: 7.499 | Obj: 0.974 | Align: 0.678:   0%|          | 0/1 [00:01<?, ?it/s]Epoch 1/2 | Batch 1/1 | Loss: 18.6846 | Box: 9.925 | Cls: 7.499 | Obj: 0.974 | Align: 0.678: 100%|██████████| 1/1 [00:01<00:00,  1.62s/it]                                                                                                                                          2025-07-02 15:46:18,797 - train - INFO - 🔬 [Epoch 1] MC Dropout Quality Metrics: 임시 비활성화됨
-2025-07-02 15:46:18,798 - train - INFO -   MC Dropout 품질 평가는 학습 완료 후 별도로 실행할 수 있습니다.
-2025-07-02 15:46:18,798 - train - INFO - 🔍 Evaluating model at epoch 1
-2025-07-02 15:46:18,798 - train - INFO - 🔍 Evaluating model at epoch 1
-2025-07-02 15:46:18,798 - train - INFO - 🔍 Evaluating model at epoch 1
-2025-07-02 15:46:18,798 - train - INFO - ================================================================================
-2025-07-02 15:46:18,798 - train - INFO - 📊 EPOCH 1/2 SUMMARY
-2025-07-02 15:46:18,798 - train - INFO - ================================================================================
-2025-07-02 15:46:18,798 - train - INFO - Average Loss: 18.684614
-2025-07-02 15:46:18,798 - train - INFO - Learning Rate: 0.00050050
-2025-07-02 15:46:18,799 - train - INFO - Training Progress: 50.0% (1/2 epochs)
-2025-07-02 15:46:18,799 - train - INFO - ------------------------------------------------------------
-2025-07-02 15:46:18,799 - train - INFO - 💾 CHECKPOINT & EVALUATION - Epoch 1
-2025-07-02 15:46:18,799 - train - INFO - ------------------------------------------------------------
-2025-07-02 15:46:18,799 - train - INFO - 📊 MC Dropout 분석은 10 epoch마다 실행됩니다 (현재: 1)
-2025-07-02 15:46:18,799 - train - INFO - 🔍 Evaluating model at epoch 1
-2025-07-02 15:46:18,923 - train - INFO - 
-🔄 Starting Epoch 2/2
-Epoch 1:   0%|          | 0/1 [00:00<?, ?it/s]2025-07-02 15:46:18,926 - train - INFO - 
-🔄 Starting Epoch 2/2
-Epoch 1:   0%|          | 0/1 [00:00<?, ?it/s]2025-07-02 15:46:18,929 - train - INFO - 
-🔄 Starting Epoch 2/2
-Epoch 1:   0%|          | 0/1 [00:00<?, ?it/s]2025-07-02 15:46:18,943 - train - INFO - 📊 Validation Results:
-2025-07-02 15:46:18,943 - train - INFO -    mAP@0.5: 0.1000
-2025-07-02 15:46:18,943 - train - INFO -    mAP@0.5:0.95: 0.0700
-2025-07-02 15:46:18,943 - train - INFO - 🎉 NEW BEST mAP@0.5: 0.1000 (Previous: 0.1000)
-2025-07-02 15:46:18,943 - train - INFO - 🎉 NEW BEST mAP@0.5:0.95: 0.0700
-2025-07-02 15:46:18,949 - train - INFO - 💾 Saving checkpoints...
-2025-07-02 15:46:19,224 - train - INFO -    ✓ Latest: runs/train/yolov8m_label_p10.0_2/latest_model.pt
-2025-07-02 15:46:19,492 - train - INFO -    🏆 Best: runs/train/yolov8m_label_p10.0_2/best_model.pt
-2025-07-02 15:46:19,492 - train - INFO - ------------------------------------------------------------
-2025-07-02 15:46:19,492 - train - INFO - 
-🔄 Starting Epoch 2/2
-
-
-
-Epoch 1:   0%|          | 0/1 [00:00<?, ?it/s]Epoch 2/2 | Batch 1/1 | Loss: 18.8746 | Box: 10.717 | Cls: 8.017 | Obj: 0.973 | Align: 0.678:   0%|          | 0/1 [00:00<?, ?it/s]Epoch 2/2 | Batch 1/1 | Loss: 18.8746 | Box: 9.154 | Cls: 8.065 | Obj: 0.974 | Align: 0.680:   0%|          | 0/1 [00:00<?, ?it/s]Epoch 2/2 | Batch 1/1 | Loss: 18.8746 | Box: 10.429 | Cls: 7.058 | Obj: 0.973 | Align: 0.678:   0%|          | 0/1 [00:00<?, ?it/s]Epoch 2/2 | Batch 1/1 | Loss: 18.8746 | Box: 9.837 | Cls: 8.056 | Obj: 0.974 | Align: 0.677:   0%|          | 0/1 [00:00<?, ?it/s]Epoch 2/2 | Batch 1/1 | Loss: 18.8746 | Box: 10.717 | Cls: 8.017 | Obj: 0.973 | Align: 0.678: 100%|██████████| 1/1 [00:00<00:00,  1.37it/s]Epoch 2/2 | Batch 1/1 | Loss: 18.8746 | Box: 9.154 | Cls: 8.065 | Obj: 0.974 | Align: 0.680: 100%|██████████| 1/1 [00:00<00:00,  1.37it/s]Epoch 2/2 | Batch 1/1 | Loss: 18.8746 | Box: 10.429 | Cls: 7.058 | Obj: 0.973 | Align: 0.678: 100%|██████████| 1/1 [00:00<00:00,  1.36it/s]Epoch 2/2 | Batch 1/1 | Loss: 18.8746 | Box: 9.837 | Cls: 8.056 | Obj: 0.974 | Align: 0.677: 100%|██████████| 1/1 [00:00<00:00,  6.06it/s]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          2025-07-02 15:46:19,660 - train - INFO - 🔬 [Epoch 2] MC Dropout Quality Metrics: 임시 비활성화됨
-2025-07-02 15:46:19,660 - train - INFO -   MC Dropout 품질 평가는 학습 완료 후 별도로 실행할 수 있습니다.
-2025-07-02 15:46:19,660 - train - INFO - ================================================================================
-2025-07-02 15:46:19,660 - train - INFO - 🔍 Evaluating model at epoch 2
-2025-07-02 15:46:19,660 - train - INFO - 📊 EPOCH 2/2 SUMMARY
-2025-07-02 15:46:19,660 - train - INFO - 🔍 Evaluating model at epoch 2
-2025-07-02 15:46:19,660 - train - INFO - ================================================================================
-2025-07-02 15:46:19,660 - train - INFO - Average Loss: 18.874590
-2025-07-02 15:46:19,660 - train - INFO - Learning Rate: 0.00000100
-2025-07-02 15:46:19,660 - train - INFO - Training Progress: 100.0% (2/2 epochs)
-2025-07-02 15:46:19,660 - train - INFO - ------------------------------------------------------------
-2025-07-02 15:46:19,660 - train - INFO - 💾 CHECKPOINT & EVALUATION - Epoch 2
-2025-07-02 15:46:19,660 - train - INFO - ------------------------------------------------------------
-2025-07-02 15:46:19,661 - train - INFO - 📊 MC Dropout 분석은 10 epoch마다 실행됩니다 (현재: 2)
-2025-07-02 15:46:19,660 - train - INFO - 🔍 Evaluating model at epoch 2
-2025-07-02 15:46:19,661 - train - INFO - 🔍 Evaluating model at epoch 2
-2025-07-02 15:46:19,756 - train - INFO - Performing final evaluation...
-2025-07-02 15:46:19,757 - train - INFO - 📊 Validation Results:
-2025-07-02 15:46:19,757 - train - INFO -    mAP@0.5: 0.1000
-2025-07-02 15:46:19,757 - train - INFO -    mAP@0.5:0.95: 0.0700
-2025-07-02 15:46:19,757 - train - INFO -    Best mAP@0.5: 0.1000 (Current: 0.1000)
-2025-07-02 15:46:19,757 - train - INFO -    Best mAP@0.5:0.95: 0.0700 (Current: 0.0700)
-2025-07-02 15:46:19,757 - train - INFO - Performing final evaluation...
-2025-07-02 15:46:19,759 - train - INFO - Performing final evaluation...
-2025-07-02 15:46:19,763 - train - INFO - 💾 Saving checkpoints...
-2025-07-02 15:46:20,061 - train - INFO - Training completed - Final mAP50: 0.1000, Final mAP50-95: 0.0700
-2025-07-02 15:46:20,062 - train - INFO - Training completed - Final mAP50: 0.1000, Final mAP50-95: 0.0700
-2025-07-02 15:46:20,071 - train - INFO - Training completed - Final mAP50: 0.1000, Final mAP50-95: 0.0700
-✅ 워커 3: 학습 완료
-🧹 워커 3: 정리 중...
-👋 워커 3: 종료
-✅ 워커 2: 학습 완료
-🧹 워커 2: 정리 중...
-👋 워커 2: 종료
-✅ 워커 1: 학습 완료
-🧹 워커 1: 정리 중...
-👋 워커 1: 종료
-
-🧹 GPU 메모리 정리 중...
-✅ GPU 메모리 정리 완료
-   GPU 0: 0.00GB allocated, 0.00GB reserved
-   GPU 1: 0.00GB allocated, 0.00GB reserved
-   GPU 2: 0.00GB allocated, 0.00GB reserved
-   GPU 3: 0.00GB allocated, 0.34GB reserved
-
-🧹 GPU 메모리 정리 중...
-✅ GPU 메모리 정리 완료
-   GPU 0: 0.00GB allocated, 0.00GB reserved
-   GPU 1: 0.00GB allocated, 0.00GB reserved
-   GPU 2: 0.00GB allocated, 0.34GB reserved
-   GPU 3: 0.00GB allocated, 0.00GB reserved
-2025-07-02 15:46:20,477 - train - INFO -    ✓ Latest: runs/train/yolov8m_label_p10.0_2/latest_model.pt
-2025-07-02 15:46:20,477 - train - INFO - ------------------------------------------------------------
-2025-07-02 15:46:20,478 - train - INFO - Performing final evaluation...
-
-🧹 GPU 메모리 정리 중...
-✅ GPU 메모리 정리 완료
-   GPU 0: 0.00GB allocated, 0.00GB reserved
-   GPU 1: 0.00GB allocated, 0.34GB reserved
-   GPU 2: 0.00GB allocated, 0.00GB reserved
-   GPU 3: 0.00GB allocated, 0.00GB reserved
-2025-07-02 15:46:20,828 - train - INFO - Training completed - Final mAP50: 0.1000, Final mAP50-95: 0.0700
-
-
-
-✅ 워커 0: 학습 완료
-🧹 워커 0: 정리 중...
-👋 워커 0: 종료
-
-🧹 GPU 메모리 정리 중...
-✅ GPU 메모리 정리 완료
-   GPU 0: 0.00GB allocated, 0.34GB reserved
-   GPU 1: 0.00GB allocated, 0.00GB reserved
-   GPU 2: 0.00GB allocated, 0.00GB reserved
-   GPU 3: 0.00GB allocated, 0.00GB reserved
-분산 학습 완료
+2025-07-03 10:49:37,156 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 10:49:37,157 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 10:49:37,157 - train - INFO - 디바이스: cuda:0
+2025-07-03 10:49:37,157 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 10:49:39,660 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 11:47:16,973 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 11:47:16,977 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 11:47:16,977 - train - INFO - 디바이스: cuda:0
+2025-07-03 11:47:16,977 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 11:47:19,549 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 11:48:29,112 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 11:48:29,113 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 11:48:29,113 - train - INFO - 디바이스: cuda:0
+2025-07-03 11:48:29,113 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 11:48:30,503 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 11:48:55,436 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 11:48:55,436 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 11:48:55,436 - train - INFO - 디바이스: cuda:0
+2025-07-03 11:48:55,436 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 11:48:56,821 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 11:51:22,449 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 11:51:22,449 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 11:51:22,449 - train - INFO - 디바이스: cuda:0
+2025-07-03 11:51:22,449 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 11:51:23,857 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 11:52:54,872 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 11:52:54,873 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 11:52:54,873 - train - INFO - 디바이스: cuda:0
+2025-07-03 11:52:54,873 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 11:52:56,268 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 11:53:40,410 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 11:53:40,410 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 11:53:40,410 - train - INFO - 디바이스: cuda:0
+2025-07-03 11:53:40,410 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 11:53:41,779 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 11:54:17,062 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 11:54:17,062 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 11:54:17,062 - train - INFO - 디바이스: cuda:0
+2025-07-03 11:54:17,062 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 11:54:18,455 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 11:54:47,478 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 11:54:47,478 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 11:54:47,478 - train - INFO - 디바이스: cuda:0
+2025-07-03 11:54:47,478 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 11:54:50,926 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 12:05:40,227 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 12:05:40,228 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 12:05:40,228 - train - INFO - 디바이스: cuda:0
+2025-07-03 12:05:40,228 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 12:05:47,755 - train - ERROR - ❌ 검증 데이터 로더 생성 실패로 검증을 중단합니다
+2025-07-03 12:06:51,141 - train - INFO - 🚀 SSOD YOLO MC 모델 검증 시작
+2025-07-03 12:06:51,141 - train - INFO - 모델 경로: runs/train/yolov8m_label_p10.0/best_model.pt
+2025-07-03 12:06:51,141 - train - INFO - 디바이스: cuda:0
+2025-07-03 12:06:51,141 - train - INFO - 설정 파일: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/configs/yolo_config.yaml
+2025-07-03 12:07:05,035 - train - INFO - ================================================================================
+2025-07-03 12:07:05,035 - train - INFO - 📊 최종 검증 결과 요약
+2025-07-03 12:07:05,035 - train - INFO - ================================================================================
+2025-07-03 12:07:05,035 - train - INFO - 🔍 커스텀 평가 결과:
+2025-07-03 12:07:05,036 - train - INFO -   - Precision: 0.0000
+2025-07-03 12:07:05,036 - train - INFO -   - Recall: 0.0000
+2025-07-03 12:07:05,036 - train - INFO -   - F1-Score: 0.0000
+2025-07-03 12:07:05,062 - train - INFO - ✓ 검증 결과가 저장되었습니다: validation_results/validation_results_best_model.yaml
+2025-07-03 12:07:05,062 - train - INFO - ✅ 검증 완료

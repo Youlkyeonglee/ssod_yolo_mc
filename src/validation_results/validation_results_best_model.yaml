@@ -1,0 +1,356 @@
+config:
+  data:
+    augment: true
+    augmentation:
+      strong:
+        affine:
+          scale:
+          - 0.9
+          - 1.1
+          translate:
+          - 0.1
+          - 0.1
+        color_jitter:
+          brightness: 0.4
+          contrast: 0.4
+          hue: 0.1
+          saturation: 0.3
+        cutout:
+          length: 32
+          n_holes: 1
+        horizontal_flip: 0.5
+        perspective: 0.2
+        rotation: 15
+      weak:
+        color_jitter:
+          brightness: 0.2
+          contrast: 0.2
+          hue: 0.05
+          saturation: 0.1
+        horizontal_flip: 0.5
+    batch_size: 16
+    coco:
+      train_root: /media/oem/personal_vol/yklee/data/COCO/train2017
+      unlabeled_root: /media/oem/personal_vol/yklee/data/COCO/unlabeled2017
+    format: yolo
+    img_size: 640
+    labeled_ratio: 10.0
+    max_samples: null
+    names:
+    - person
+    - bicycle
+    - car
+    - motorcycle
+    - airplane
+    - bus
+    - train
+    - truck
+    - boat
+    - traffic light
+    - fire hydrant
+    - stop sign
+    - parking meter
+    - bench
+    - bird
+    - cat
+    - dog
+    - horse
+    - sheep
+    - cow
+    - elephant
+    - bear
+    - zebra
+    - giraffe
+    - backpack
+    - umbrella
+    - handbag
+    - tie
+    - suitcase
+    - frisbee
+    - skis
+    - snowboard
+    - sports ball
+    - kite
+    - baseball bat
+    - baseball glove
+    - skateboard
+    - surfboard
+    - tennis racket
+    - bottle
+    - wine glass
+    - cup
+    - fork
+    - knife
+    - spoon
+    - bowl
+    - banana
+    - apple
+    - sandwich
+    - orange
+    - broccoli
+    - carrot
+    - hot dog
+    - pizza
+    - donut
+    - cake
+    - chair
+    - couch
+    - potted plant
+    - bed
+    - dining table
+    - toilet
+    - tv
+    - laptop
+    - mouse
+    - remote
+    - keyboard
+    - cell phone
+    - microwave
+    - oven
+    - toaster
+    - sink
+    - refrigerator
+    - book
+    - clock
+    - vase
+    - scissors
+    - teddy bear
+    - hair drier
+    - toothbrush
+    nc: 80
+    num_workers: 0
+    root: /media/oem/personal_vol/yklee/ssod_yolo_mc/src/data/semi_supervised
+    seed: 1
+    val:
+      images: /media/oem/personal_vol/yklee/data/COCO/val2017/images
+      labels: /media/oem/personal_vol/yklee/data/COCO/val2017/labels
+      root: /media/oem/personal_vol/yklee/data/COCO/val2017
+  evaluation:
+    metrics:
+    - mAP50
+    - mAP50-95
+    uncertainty_metrics:
+    - entropy
+    - variance
+  gpu:
+    auto_detect: true
+    distributed:
+      backend: nccl
+      enabled: true
+      local_rank: null
+      master_addr: localhost
+      master_port: '12355'
+      rank: null
+      world_size: null
+    gpu_ids:
+    - 0
+    - 1
+    - 2
+    - 3
+    memory:
+      gradient_accumulation: 1
+      mixed_precision: true
+      non_blocking: true
+      pin_memory: true
+    use_gpu: true
+  inference:
+    conf_threshold: 0.25
+    device: null
+  model:
+    dropout:
+      enabled: true
+      num_samples: 5
+      rate: 0.1
+    ema:
+      decay: 0.999
+      enabled: true
+    feature_alignment:
+      enabled: true
+      weight: 0.1
+    name: yolov8m
+    pretrained: true
+    size: m
+    task: detect
+    version: v8
+  training:
+    batch_size: 16
+    checkpoint_dir: checkpoints
+    ema:
+      decay: 0.999
+    epochs: 20
+    feature_alignment:
+      levels:
+      - P3
+      - P4
+      - P5
+      weight: 0.1
+    grad_clip:
+      max_norm: 10.0
+    img_size: 640
+    learning_rate: 0.001
+    loss_weights:
+      semi_supervised:
+        bbox_loss_type: ciou
+        box_loss_gain: 7.5
+        cls_loss_gain: 0.5
+        focal_loss_gamma: 0.0
+        label_smoothing: 0.0
+        obj_loss_gain: 1.0
+        uncertainty_alpha: 5.0
+      supervised:
+        bbox_loss_type: ciou
+        box_loss_gain: 7.5
+        cls_loss_gain: 0.5
+        focal_loss_gamma: 0.0
+        label_smoothing: 0.0
+        obj_loss_gain: 1.0
+    mature_epoch: 5
+    mc_loss:
+      adaptive_weighting: true
+      alpha: 1.0
+      beta: 0.5
+      gamma: 0.3
+      temperature: 1.0
+    momentum: 0.937
+    optimizer:
+      lr: 0.001
+      momentum: 0.937
+      name: SGD
+      weight_decay: 0.0005
+    save_interval: 1
+    scheduler:
+      name: cosine
+      warmup_bias_lr: 0.1
+      warmup_epochs: 3
+      warmup_momentum: 0.8
+    semi_supervised:
+      bbox_consistency_weight: 1.0
+      class_consistency_weight: 1.0
+      conf_threshold: 0.5
+      consistency_loss_type: kl_divergence
+      consistency_temperature: 3.0
+      consistency_weight: 0.1
+      enabled: true
+      max_pseudo_labels: 2000
+      mc_consistency_alpha: 1.0
+      mc_consistency_beta: 0.5
+      mc_consistency_temperature: 1.0
+      mc_consistency_weight: 0.0
+      mc_uncertainty_threshold: 0.1
+      mc_use_adaptive_weighting: true
+      num_mc_samples: 10
+      obj_consistency_weight: 1.0
+      pseudo_label_start_epoch: 5
+      pseudo_label_weight: 0.5
+      uncertainty:
+        box_std_threshold: 0.1
+        confidence_threshold: 0.7
+        entropy_threshold: 0.5
+        min_detections: 3
+        reliability_threshold: 0.5
+      uncertainty_alpha: 5.0
+      uncertainty_weight: 5.0
+      unlabeled_weight: 0.5
+    uncertainty_weight: 5.0
+    val_interval: 5
+    warmup_bias_lr: 0.1
+    warmup_epochs: 3
+    warmup_momentum: 0.8
+    weight_decay: 0.0005
+custom_results:
+  class_accuracies:
+    0: 0.0
+    1: 0.0
+    2: 0.0
+    3: 0.0
+    4: 0.0
+    5: 0.0
+    6: 0.0
+    7: 0.0
+    8: 0.0
+    9: 0.0
+    10: 0.0
+    11: 0.0
+    12: 0.0
+    13: 0.0
+    14: 0.0
+    15: 0.0
+    16: 0.0
+    17: 0.0
+    18: 0.0
+    19: 0.0
+    20: 0.0
+    21: 0.0
+    22: 0.0
+    23: 0.0
+    24: 0.0
+    25: 0.0
+    26: 0.0
+    27: 0.0
+    28: 0.0
+    29: 0.0
+    30: 0.0
+    31: 0.0
+    32: 0.0
+    33: 0.0
+    34: 0.0
+    35: 0.0
+    36: 0.0
+    37: 0.0
+    38: 0.0
+    39: 0.0
+    40: 0.0
+    41: 0.0
+    42: 0.0
+    43: 0.0
+    44: 0.0
+    45: 0.0
+    46: 0.0
+    47: 0.0
+    48: 0.0
+    49: 0.0
+    50: 0.0
+    51: 0.0
+    52: 0.0
+    53: 0.0
+    54: 0.0
+    55: 0.0
+    56: 0.0
+    57: 0.0
+    58: 0.0
+    59: 0.0
+    60: 0.0
+    61: 0.0
+    62: 0.0
+    63: 0.0
+    64: 0.0
+    65: 0.0
+    66: 0.0
+    67: 0.0
+    68: 0.0
+    69: 0.0
+    70: 0.0
+    71: 0.0
+    72: 0.0
+    73: 0.0
+    74: 0.0
+    75: 0.0
+    76: 0.0
+    77: 0.0
+    78: 0.0
+    79: 0.0
+  correct_predictions: 0
+  f1_score: 0.0
+  mc_uncertainty_stats: {}
+  precision: 0.0
+  recall: 0.0
+  total_ground_truths: 6355
+  total_predictions: 816
+evaluation_settings:
+  batch_size: 16
+  conf_threshold: 0.25
+  iou_threshold: 0.5
+  mc_dropout_eval: false
+  num_mc_samples: 10
+model_path: runs/train/yolov8m_label_p10.0/best_model.pt
+ultralytics_results: null

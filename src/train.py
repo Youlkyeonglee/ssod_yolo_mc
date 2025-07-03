@@ -10,6 +10,7 @@ import atexit
 import signal
 import sys
 import gc
+import numpy as np
 from models.yolo_mc import YOLOWithMCDropout
 from uncertainty.mc_dropout import MCDropoutDetector
 from data.semi_supervised_dataset import SemiSupervisedDataset
@@ -111,7 +112,7 @@ def parse_args():
     # 실행 관련 설정만 명령행 인자로 받음
     parser.add_argument('--save_dir', type=str, default=".",
                       help='프로젝트 루트 디렉토리 (runs 폴더가 생성될 위치)')
-    parser.add_argument('--val_data_path', type=str, default="/home/lee/research/Research2025/ssod_yolo_mc/src/configs/coco_val.yaml",
+    parser.add_argument('--val_data_path', type=str, default="/media/oem/personal_vol/yklee/data/COCO/val2017/images",
                       help='검증 데이터 경로')
     parser.add_argument('--device', type=str, default=None,
                       help='실행 디바이스 (예: cpu, cuda:0)')
@@ -139,12 +140,7 @@ def parse_args():
     if args.use_distributed:
         config['gpu']['distributed']['enabled'] = True
     
-    # 설정값 정수형 변환 및 변수 참조 처리
-    if isinstance(config['training']['semi_supervised']['pseudo_label_start_epoch'], str):
-        if config['training']['semi_supervised']['pseudo_label_start_epoch'] == '${training.mature_epoch}':
-            config['training']['semi_supervised']['pseudo_label_start_epoch'] = config['training']['mature_epoch']
-    
-    # config의 값들을 args에 추가
+    # config의 값들을 args에 추가 (새로운 구조에 맞게 수정)
     args.model = config['model']['name']
     args.dropout_rate = config['model']['dropout']['rate']
     args.num_samples = config['model']['dropout']['num_samples']
@@ -155,15 +151,21 @@ def parse_args():
     args.labeled_ratio = config['data']['labeled_ratio']
     args.seed = config['data']['seed']
     args.max_samples = config['data']['max_samples']
-    args.box_std_threshold = config['training']['semi_supervised']['uncertainty']['box_std_threshold']
-    args.entropy_threshold = config['training']['semi_supervised']['uncertainty']['entropy_threshold']
-    args.unlabeled_weight = config['training']['semi_supervised']['unlabeled_weight']
-    args.pseudo_label_start_epoch = config['training']['semi_supervised']['pseudo_label_start_epoch']
-    args.conf_threshold = config['training']['semi_supervised']['conf_threshold']
-    args.feature_alignment_enabled = config['model']['feature_alignment']['enabled']
-    args.feature_alignment_weight = config['model']['feature_alignment']['weight']
     args.num_workers = config['data']['num_workers']
     
+    # Semi-supervised 설정
+    semi_config = config['training']['loss_weights']['semi_supervised']
+    args.box_std_threshold = semi_config['uncertainty']['box_std_threshold']
+    args.entropy_threshold = semi_config['uncertainty']['entropy_threshold']
+    args.max_pseudo_labels = semi_config['max_pseudo_labels']
+    args.unlabeled_weight = semi_config['unlabeled_weight']
+    args.pseudo_label_start_epoch = semi_config['pseudo_label_start_epoch']
+    args.conf_threshold = semi_config['conf_threshold']
+    args.num_mc_samples = semi_config['num_mc_samples']
+    
+    # Feature alignment 설정
+    args.feature_alignment_enabled = config['model']['feature_alignment']['enabled']
+    args.feature_alignment_weight = config['model']['feature_alignment']['weight']
     
     # device가 설정되지 않은 경우 config에서 가져오기
     if args.device is None:
@@ -301,17 +303,13 @@ def train_one_epoch(
     from utils.distributed_utils import reduce_tensor, is_main_process
     world_size = get_world_size()
     
-    # MC Dropout 불확실성 임계값 설정 로드
-    box_std_threshold = config['training']['semi_supervised']['uncertainty']['box_std_threshold']
-    entropy_threshold = config['training']['semi_supervised']['uncertainty']['entropy_threshold']
-    
     # 🎯 MC Dropout Consistency Loss 초기화
     mc_consistency_loss_fn = create_mc_consistency_loss(
-        alpha=config['training']['semi_supervised'].get('mc_consistency_alpha', 1.0),
-        beta=config['training']['semi_supervised'].get('mc_consistency_beta', 0.5),
-        temperature=config['training']['semi_supervised'].get('mc_consistency_temperature', 1.0),
-        uncertainty_threshold=config['training']['semi_supervised'].get('mc_uncertainty_threshold', 0.1),
-        use_adaptive_weighting=config['training']['semi_supervised'].get('mc_use_adaptive_weighting', True)
+        alpha=config['training']['loss_weights']['semi_supervised'].get('mc_consistency_alpha', 1.0),
+        beta=config['training']['loss_weights']['semi_supervised'].get('mc_consistency_beta', 0.5),
+        temperature=config['training']['loss_weights']['semi_supervised'].get('mc_consistency_temperature', 1.0),
+        uncertainty_threshold=config['training']['loss_weights']['semi_supervised'].get('mc_uncertainty_threshold', 0.1),
+        use_adaptive_weighting=config['training']['loss_weights']['semi_supervised'].get('mc_use_adaptive_weighting', True)
     ).to(device)
     
     # 학습 루프
@@ -403,7 +401,7 @@ def train_one_epoch(
             try:
                 # from utils.yolo_losses import YOLOLossSupervised
                 
-                # Config에서 Supervised YOLO Loss 파라미터 읽기
+                # Config에서 Supervised YOLO Loss 파라미터 읽기 (새로운 구조)
                 supervised_config = config['training']['loss_weights']['supervised']
                 
                 # Supervised YOLO Loss 생성 (config 기반)
@@ -494,7 +492,7 @@ def train_one_epoch(
                     device=device, 
                     config=config
                 )
-                
+                # 여기까지 에러가 안남
                 if mc_result:  # mc_result는 이미 list 형태 (여러 이미지의 결과)
                     # 배치별 진행 상황 로깅 (첫 번째 배치에서만 상세 로그)
                     if batch_idx == 0:
@@ -518,17 +516,23 @@ def train_one_epoch(
                                     # YOLO 형식으로 변환 [class_id, x, y, w, h] - 복사하여 inplace 방지
                                     yolo_detections = []
                                     for i in range(len(boxes)):
-                                        yolo_detection = torch.zeros(5, device=boxes[i].device)
-                                        yolo_detection[0] = labels[i].float().clone()  # class_id 복사
-                                        yolo_detection[1:5] = boxes[i].clone()  # x, y, w, h 복사
-                                        yolo_detections.append(yolo_detection)
+                                        # 박스 좌표 유효성 검사 및 클램핑
+                                        box_coords = boxes[i].clone()
+                                        box_coords = torch.clamp(box_coords, 0.0, 1.0)  # 0~1 범위로 클램핑
+                                        
+                                        # 너무 작은 박스 필터링 (최소 크기 0.01)
+                                        if box_coords[2] >= 0.01 and box_coords[3] >= 0.01:
+                                            yolo_detection = torch.zeros(5, device=boxes[i].device)
+                                            yolo_detection[0] = labels[i].float().clone()  # class_id 복사
+                                            yolo_detection[1:5] = box_coords  # x, y, w, h 복사
+                                            yolo_detections.append(yolo_detection)
                                 
                                     if yolo_detections:
                                         consistent_detections = torch.stack(yolo_detections).clone()  # 최종 복사
                                         
                                         high_quality_pseudo_labels.append({
                                             'boxes': consistent_detections,
-                                            'image_path': unlabeled_batch.get('paths', [''])[img_idx] if 'paths' in unlabeled_batch and img_idx < len(unlabeled_batch.get('paths', [])) else '',
+                                            'paths': unlabeled_batch.get('paths', [''])[img_idx] if 'paths' in unlabeled_batch and img_idx < len(unlabeled_batch.get('paths', [])) else '',
                                             'uncertainty_stats': {
                                                 'mc_samples': detector.num_samples,  # detector에서 설정된 MC 샘플 수
                                                 'detections_count': len(consistent_detections),
@@ -544,7 +548,7 @@ def train_one_epoch(
                         
                         # 진행률 표시에 pseudo labels 정보 추가
                         if 'postfix_dict' in locals():
-                            None['pseudo'] = f"{total_detections}"
+                            postfix_dict['pseudo'] = f"{total_detections}"
                     else:
                         if batch_idx == 0:  # 첫 번째 배치에서만 로그
                             print("  ⚠️  No high-quality pseudo labels generated in this batch")
@@ -564,10 +568,12 @@ def train_one_epoch(
                     
                     # === Unlabeled Data Loss 계산 ===
                     unlabeled_data_loss = torch.tensor(0.0, device=device, requires_grad=True)
-                    consistency_weight = config['training']['semi_supervised']['consistency_weight']
+                    consistency_weight = config['training']['loss_weights']['semi_supervised']['consistency_weight']
                     
                     # Unlabeled Data Loss 계산 (단순화된 구조)
+                    
                     if high_quality_pseudo_labels:
+                        # print("high_quality_pseudo_labels: ", high_quality_pseudo_labels)
                         unlabeled_data_loss = calculate_unlabeled_loss(
                             model=model,
                             high_quality_pseudo_labels=high_quality_pseudo_labels,
@@ -577,10 +583,10 @@ def train_one_epoch(
                             config=config,
                             logger=logger
                         )
+                        # print("unlabeled_data_loss: ", unlabeled_data_loss)
                         
                         # consistency_weight 적용
                         unlabeled_data_loss = unlabeled_data_loss * consistency_weight
-                        
                         # Loss dictionary 업데이트
                         if hasattr(unlabeled_data_loss, 'item'):
                             loss_dict['unlabeled_data_loss'] = unlabeled_data_loss.item()
@@ -589,7 +595,7 @@ def train_one_epoch(
                         
                         # === 🎯 MC Dropout Consistency Loss 계산 ===
                         mc_consistency_loss = torch.tensor(0.0, device=device, requires_grad=True)
-                        mc_consistency_weight = config['training']['semi_supervised'].get('mc_consistency_weight', 0.3)
+                        mc_consistency_weight = config['training']['loss_weights']['semi_supervised'].get('mc_consistency_weight', 0.3)
                         
                         if mc_consistency_weight > 0.0:
                             try:
@@ -605,7 +611,7 @@ def train_one_epoch(
                                     for pseudo_label in high_quality_pseudo_labels:
                                         safe_pseudo_label = {
                                             'boxes': pseudo_label['boxes'].clone(),
-                                            'image_path': pseudo_label.get('image_path', ''),
+                                            'paths': pseudo_label.get('paths', ''),
                                             'uncertainty_stats': pseudo_label.get('uncertainty_stats', {})
                                         }
                                         safe_high_quality_pseudo_labels.append(safe_pseudo_label)
@@ -633,7 +639,7 @@ def train_one_epoch(
                                     )
                                     
                                     mc_consistency_loss = mc_consistency_result['total'] * mc_consistency_weight
-                                    
+                                    print("mc_consistency_loss: ", mc_consistency_loss)
                                     # 세부 손실 컴포넌트 로깅
                                     loss_dict['mc_consistency_loss'] = mc_consistency_loss.item()
                                     loss_dict['mc_pseudo_consistency'] = mc_consistency_result['pseudo_consistency'].item()
@@ -663,15 +669,25 @@ def train_one_epoch(
                     # mc_consistency_loss가 정의되지 않은 경우를 대비한 안전장치
                     if 'mc_consistency_loss' not in locals():
                         mc_consistency_loss = torch.tensor(0.0, device=device, requires_grad=True)
-                    
                     unlabeled_loss = unlabeled_data_loss + mc_consistency_loss
                     total_loss = labeled_loss + unlabeled_loss
+                    # print("hereerer", unlabeled_loss)
+                    # print("hereerer", total_loss)
                     
                     # Unlabeled Loss 통계 업데이트
                     loss_dict['unlabeled_loss'] = unlabeled_loss.item()
                     loss_dict['total_loss'] = total_loss.item()
                 
             except Exception as e:
+                # print("[DEBUG] Error in Teacher-Student MC Dropout calculation!")
+                # print("[DEBUG] batch_idx:", batch_idx)
+                # print("[DEBUG] epoch:", epoch)
+                # print("[DEBUG] high_quality_pseudo_labels:", high_quality_pseudo_labels if 'high_quality_pseudo_labels' in locals() else None)
+                # print("[DEBUG] strong_unlabeled_images shape:", strong_unlabeled_images.shape if 'strong_unlabeled_images' in locals() else None)
+                # print("[DEBUG] unlabeled_data_loss:", unlabeled_data_loss if 'unlabeled_data_loss' in locals() else None)
+                # print("[DEBUG] mc_consistency_loss:", mc_consistency_loss if 'mc_consistency_loss' in locals() else None)
+                # print("[DEBUG] total_loss:", total_loss if 'total_loss' in locals() else None)
+                # print("[DEBUG] config['training']['semi_supervised']:", config['training']['semi_supervised'] if 'config' in locals() and 'training' in config and 'semi_supervised' in config['training'] else None)
                 logger.info(f"Error in Teacher-Student MC Dropout calculation: {e}")
                 total_loss = labeled_loss
         else:
@@ -879,7 +895,7 @@ def get_run_dir(args, model_name: str, labeled_ratio: float) -> Path:
             else:
                 try:
                     num = int(run.name.split("_")[-1])
-                    max_num = max(max_num, num)
+                    max_num = num
                 except ValueError:
                     continue
         
@@ -891,58 +907,130 @@ def get_run_dir(args, model_name: str, labeled_ratio: float) -> Path:
     return run_dir
 
 def evaluate_model_wrapper(model, val_loader, device, epoch, save_dir, val_data_path):
-    """모델 평가 래퍼 함수"""
+    """YOLO 내장 평가 기능을 사용하는 정확한 모델 평가 함수"""
     
     # Train 모드에서 eval 모드로 전환
     model.eval()
     
     try:
-        # 간단한 평가 로직으로 대체 (train_utils의 evaluate_model 대신)
         # DDP 모델인 경우 .module 속성 사용
         model_for_eval = model.module if hasattr(model, 'module') else model
-        
-        # YOLO 모델 평가 직접 구현 (train_utils 함수 문제로 인해)
         model_for_eval.eval()
         
-        # 간단한 평가 로직 (추후 개선 가능)
-        total_loss = 0.0
-        num_batches = 0
-        
-        with torch.no_grad():
-            for batch in val_loader:
-                try:
-                    images = batch['images'].to(device)
-                    # 단순 추론 수행 (loss 계산 없이)
-                    outputs = model_for_eval(images)
-                    
-                    # 간단한 지표 계산 (실제 mAP 계산은 복잡함)
-                    if isinstance(outputs, dict) and 'predictions' in outputs:
-                        predictions = outputs['predictions']
-                        # 예측이 있으면 성공으로 간주
-                        total_loss += 1.0
-                    elif outputs is not None:
-                        total_loss += 1.0
-                    
-                    num_batches += 1
-                    
-                    # 메모리 절약을 위해 제한된 배치만 평가
-                    if num_batches >= 5:
-                        break
-                        
-                except Exception as batch_error:
-                    print(f"배치 평가 오류: {batch_error}")
-                    continue
-        
-        # 간단한 mAP 근사값 계산
-        if num_batches > 0:
-            avg_score = total_loss / num_batches
-            mAP50 = min(avg_score * 0.1, 1.0)  # 0-1 범위
-            mAP50_95 = mAP50 * 0.7  # 근사값
-        else:
-            mAP50 = 0.0
-            mAP50_95 = 0.0
-        
-        return mAP50, mAP50_95
+        # YOLO 모델의 내장 평가 기능 사용 시도
+        try:
+            # COCO validation 데이터셋 YAML 파일 경로 생성
+            coco_val_yaml = str(Path(__file__).parent / 'configs' / 'coco_val.yaml')
+            
+            # 경고 메시지 억제를 위한 설정
+            import warnings
+            import logging
+            import os
+            
+            # YOLO 관련 경고 억제
+            warnings.filterwarnings("ignore", category=UserWarning, module="ultralytics")
+            warnings.filterwarnings("ignore", category=UserWarning, module="yolo")
+            
+            # 로깅 레벨 조정
+            logging.getLogger("ultralytics").setLevel(logging.ERROR)
+            logging.getLogger("yolo").setLevel(logging.ERROR)
+            
+            # 라벨 검증은 이미 수행되었으므로 생략
+            
+            # YOLO의 runs 디렉토리를 src/runs로 변경
+            original_cwd = os.getcwd()
+            src_dir = Path(__file__).parent
+            
+            # YOLO의 runs 디렉토리 환경 변수 설정
+            runs_dir = src_dir / "runs"
+            runs_dir.mkdir(parents=True, exist_ok=True)
+            os.environ['YOLO_RUNS_DIR'] = str(runs_dir)
+            
+            # 작업 디렉토리를 src로 변경
+            os.chdir(src_dir)
+            
+            # YOLO 모델에서 직접 평가 수행 (시각화 비활성화)
+            if hasattr(model_for_eval, 'student_model') and hasattr(model_for_eval.student_model, 'val'):
+                # YOLOWithMCDropout 모델의 경우 - YAML 파일 사용
+                print(f"Using YAML config for validation: {coco_val_yaml}")
+                results = model_for_eval.student_model.val(
+                    data=coco_val_yaml,
+                    save=True,  # 시각화 저장 비활성화
+                    project=save_dir,
+                    save_txt=False,  # 텍스트 결과 저장 비활성화
+                    save_conf=False,  # 신뢰도 저장 비활성화
+                    save_json=False,  # JSON 저장 비활성화
+                    plots=False,  # 플롯 생성 비활성화
+                    verbose=True  # 상세 출력 비활성화
+                )
+            elif hasattr(model_for_eval, 'val'):
+                # 직접 YOLO 모델인 경우 - YAML 파일 사용
+                print(f"Using YAML config for validation: {coco_val_yaml}")
+                results = model_for_eval.val(
+                    data=coco_val_yaml,
+                    save=True,  # 시각화 저장 비활성화
+                    project=save_dir,
+                    save_txt=False,  # 텍스트 결과 저장 비활성화
+                    save_conf=False,  # 신뢰도 저장 비활성화
+                    save_json=False,  # JSON 저장 비활성화
+                    plots=False,  # 플롯 생성 비활성화
+                    verbose=True  # 상세 출력 비활성화
+                )
+            else:
+                # 내장 평가가 불가능한 경우 fallback
+                raise NotImplementedError("YOLO 내장 평가 불가능")
+            
+            # 작업 디렉토리 복원
+            os.chdir(original_cwd)
+            
+            # 결과에서 mAP 추출
+            if hasattr(results, 'results_dict'):
+                mAP50 = results.results_dict.get('metrics/mAP50(B)', 0.0)
+                mAP50_95 = results.results_dict.get('metrics/mAP50-95(B)', 0.0)
+                
+                # 클래스별 성능 저장
+                class_metrics = {}
+                for key, value in results.results_dict.items():
+                    if key.startswith('metrics/'):
+                        class_metrics[key] = value
+                
+                # 클래스별 성능을 txt 파일로 저장
+                metrics_file = save_dir / f'class_metrics_epoch_{epoch}.txt'
+                with open(metrics_file, 'w') as f:
+                    for metric_name, metric_value in class_metrics.items():
+                        f.write(f"{metric_name}: {metric_value}\n")
+                
+            elif hasattr(results, 'box'):
+                # 다른 형식의 결과
+                mAP50 = results.box.map50 if hasattr(results.box, 'map50') else 0.0
+                mAP50_95 = results.box.map if hasattr(results.box, 'map') else 0.0
+                
+                # 클래스별 성능 저장
+                metrics_file = save_dir / f'class_metrics_epoch_{epoch}.txt'
+                with open(metrics_file, 'w') as f:
+                    if hasattr(results.box, 'classes'):
+                        for i, class_metrics in enumerate(results.box.classes):
+                            f.write(f"Class {i}:\n")
+                            f.write(f"  AP50: {class_metrics.ap50:.4f}\n")
+                            f.write(f"  AP: {class_metrics.ap:.4f}\n")
+            else:
+                # 결과 형식을 알 수 없는 경우
+                mAP50 = 0.0
+                mAP50_95 = 0.0
+                
+            print(f"YOLO 내장 평가 성공: mAP50={mAP50:.4f}, mAP50-95={mAP50_95:.4f}")
+            return mAP50, mAP50_95
+            
+        except Exception as yolo_eval_error:
+            print(f"YOLO 내장 평가 실패, fallback 사용: {yolo_eval_error}")
+            print(f"YAML 파일 경로: {coco_val_yaml}")
+            print(f"YAML 파일 존재 여부: {Path(coco_val_yaml).exists()}")
+            
+            # 작업 디렉토리 복원 (예외 발생 시에도)
+            os.chdir(original_cwd)
+            
+            # Fallback: 수동 평가
+            return evaluate_model_manual(model_for_eval, val_loader, device)
         
     except Exception as e:
         print(f"평가 실패: {e}")
@@ -952,6 +1040,202 @@ def evaluate_model_wrapper(model, val_loader, device, epoch, save_dir, val_data_
     finally:
         # 다시 train 모드로 전환
         model.train()
+
+def evaluate_model_manual(model, val_loader, device):
+    """수동 평가 함수 (fallback)"""
+    model.eval()
+    
+    # 평가 메트릭 초기화
+    all_predictions = []
+    all_targets = []
+    num_batches = 0
+    
+    with torch.no_grad():
+        for batch in val_loader:
+            try:
+                images = batch['images'].to(device)
+                targets = batch['labels']
+                
+                # 모델 예측
+                outputs = model(images)
+                
+                # 예측 결과 처리
+                if isinstance(outputs, dict) and 'predictions' in outputs:
+                    predictions = outputs['predictions']
+                else:
+                    predictions = outputs
+                
+                # 예측과 타겟 수집
+                if predictions is not None:
+                    if isinstance(predictions, (list, tuple)):
+                        if len(predictions) > 0:
+                            pred = predictions[0]
+                            if pred is not None:
+                                all_predictions.append(pred.cpu())
+                    else:
+                        all_predictions.append(predictions.cpu())
+                
+                # 타겟 처리
+                batch_targets = []
+                for i, target in enumerate(targets):
+                    if len(target) > 0:
+                        yolo_target = torch.zeros((len(target), 6))
+                        yolo_target[:, 0] = i
+                        yolo_target[:, 1:] = target
+                        batch_targets.append(yolo_target)
+                
+                if batch_targets:
+                    all_targets.extend(batch_targets)
+                
+                num_batches += 1
+                
+                if num_batches >= 10:
+                    break
+                    
+            except Exception as batch_error:
+                print(f"배치 평가 오류: {batch_error}")
+                continue
+    
+    # 실제 mAP 계산
+    if all_predictions and all_targets:
+        try:
+            if len(all_predictions) > 0:
+                predictions_tensor = torch.cat(all_predictions, dim=0)
+            else:
+                predictions_tensor = torch.empty((0, 6))
+            
+            if len(all_targets) > 0:
+                targets_tensor = torch.cat(all_targets, dim=0)
+            else:
+                targets_tensor = torch.empty((0, 6))
+            
+            mAP50, mAP50_95 = compute_simple_map(predictions_tensor, targets_tensor)
+            
+        except Exception as map_error:
+            print(f"mAP 계산 오류: {map_error}")
+            mAP50, mAP50_95 = 0.0, 0.0
+    else:
+        mAP50, mAP50_95 = 0.0, 0.0
+    
+    print(f"수동 평가 완료: mAP50={mAP50:.4f}, mAP50-95={mAP50_95:.4f}")
+    return mAP50, mAP50_95
+
+def compute_simple_map(predictions, targets, iou_threshold=0.5):
+    """간단한 IoU 기반 mAP 계산"""
+    if len(predictions) == 0 or len(targets) == 0:
+        return 0.0, 0.0
+    
+    try:
+        # 텐서를 numpy로 변환하여 처리
+        predictions_np = predictions.detach().cpu().numpy()
+        targets_np = targets.detach().cpu().numpy()
+        
+        # 예측과 타겟을 박스 형식으로 변환
+        pred_boxes = predictions_np[:, :4]  # [x1, y1, x2, y2]
+        pred_scores = predictions_np[:, 4]  # confidence
+        pred_classes = predictions_np[:, 5].astype(int)  # class_id
+        
+        target_boxes = targets_np[:, 2:6]  # [x, y, w, h] -> [x1, y1, x2, y2] 변환 필요
+        target_classes = targets_np[:, 1].astype(int)  # class_id
+        
+        # center format을 corner format으로 변환 (타겟)
+        target_boxes_corner = np.zeros_like(target_boxes)
+        target_boxes_corner[:, 0] = target_boxes[:, 0] - target_boxes[:, 2] / 2  # x1
+        target_boxes_corner[:, 1] = target_boxes[:, 1] - target_boxes[:, 3] / 2  # y1
+        target_boxes_corner[:, 2] = target_boxes[:, 0] + target_boxes[:, 2] / 2  # x2
+        target_boxes_corner[:, 3] = target_boxes[:, 1] + target_boxes[:, 3] / 2  # y2
+        
+        # IoU 계산 및 매칭
+        matched_predictions = 0
+        total_predictions = len(predictions_np)
+        total_targets = len(targets_np)
+        
+        # 각 예측에 대해 가장 높은 IoU를 가진 타겟 찾기
+        for i, (pred_box, pred_class, pred_score) in enumerate(zip(pred_boxes, pred_classes, pred_scores)):
+            best_iou = 0.0
+            best_match = -1
+            
+            for j, (target_box, target_class) in enumerate(zip(target_boxes_corner, target_classes)):
+                if int(pred_class) == int(target_class):  # 같은 클래스만 매칭 (int로 변환)
+                    iou = calculate_iou_numpy(pred_box, target_box)
+                    if iou > best_iou:
+                        best_iou = iou
+                        best_match = j
+            
+            if best_iou >= iou_threshold:
+                matched_predictions += 1
+        
+        # Precision과 Recall 계산
+        precision = matched_predictions / max(total_predictions, 1)
+        recall = matched_predictions / max(total_targets, 1)
+        
+        # 간단한 mAP 계산 (precision을 mAP로 근사)
+        mAP50 = precision
+        mAP50_95 = precision * 0.7  # 근사값
+        
+        return mAP50, mAP50_95
+        
+    except Exception as e:
+        print(f"mAP 계산 중 오류: {e}")
+        return 0.0, 0.0
+
+def calculate_iou_numpy(box1, box2):
+    """두 박스 간의 IoU 계산 (numpy 버전)"""
+    try:
+        # 박스 좌표 추출
+        x1_1, y1_1, x2_1, y2_1 = box1
+        x1_2, y1_2, x2_2, y2_2 = box2
+        
+        # 교집합 영역 계산
+        x1_i = max(x1_1, x1_2)
+        y1_i = max(y1_1, y1_2)
+        x2_i = min(x2_1, x2_2)
+        y2_i = min(y2_1, y2_2)
+        
+        if x2_i <= x1_i or y2_i <= y1_i:
+            return 0.0
+        
+        intersection = (x2_i - x1_i) * (y2_i - y1_i)
+        
+        # 합집합 영역 계산
+        area1 = (x2_1 - x1_1) * (y2_1 - y1_1)
+        area2 = (x2_2 - x1_2) * (y2_2 - y1_2)
+        union = area1 + area2 - intersection
+        
+        return intersection / max(union, 1e-8)
+        
+    except Exception as e:
+        print(f"IoU 계산 오류: {e}")
+        return 0.0
+
+def calculate_iou(box1, box2):
+    """두 박스 간의 IoU 계산"""
+    try:
+        # 박스 좌표 추출
+        x1_1, y1_1, x2_1, y2_1 = box1
+        x1_2, y1_2, x2_2, y2_2 = box2
+        
+        # 교집합 영역 계산
+        x1_i = max(x1_1, x1_2)
+        y1_i = max(y1_1, y1_2)
+        x2_i = min(x2_1, x2_2)
+        y2_i = min(y2_1, y2_2)
+        
+        if x2_i <= x1_i or y2_i <= y1_i:
+            return 0.0
+        
+        intersection = (x2_i - x1_i) * (y2_i - y1_i)
+        
+        # 합집합 영역 계산
+        area1 = (x2_1 - x1_1) * (y2_1 - y1_1)
+        area2 = (x2_2 - x1_2) * (y2_2 - y1_2)
+        union = area1 + area2 - intersection
+        
+        return intersection / max(union, 1e-8)
+        
+    except Exception as e:
+        print(f"IoU 계산 오류: {e}")
+        return 0.0
 
 def main():
     # GPU 메모리 정리 핸들러 설정
@@ -976,11 +1260,6 @@ def main():
         # 실행 디렉토리 설정 (분산 학습에서는 메인 프로세스만)
         if not use_distributed or is_main_process():
             run_dir = get_run_dir(args, args.model, args.labeled_ratio)
-        else:
-            # 워커 프로세스는 임시 디렉토리 사용 (저장하지 않음)
-            run_dir = Path("./temp_worker")
-            run_dir.mkdir(exist_ok=True)
-
         # 로거 설정 (메인 프로세스만 상세 로그, 워커는 최소 로그)
         if use_distributed and not is_main_process():
             # 워커 프로세스는 간단한 로거만
@@ -998,9 +1277,11 @@ def main():
     
         # MC Dropout이 적용된 YOLO 모델 생성
         ema_decay = config.get('model', {}).get('ema', {}).get('decay', 0.999)  # EMA 설정 읽기
+        pretrained = config.get('model', {}).get('pretrained', False)  # pre-trained 설정 읽기
         model = YOLOWithMCDropout(
             model_name=args.model,
             dropout_rate=args.dropout_rate,
+            pretrained=pretrained,  # 설정에서 pre-trained 옵션 전달
             feature_alignment_enabled=args.feature_alignment_enabled,
             num_classes=config['data']['nc'],
             ema_decay=ema_decay
@@ -1022,13 +1303,16 @@ def main():
             mc_dropout_save_dir = run_dir / "mcdropout"
         else:
             mc_dropout_save_dir = None  # 워커 프로세스는 저장하지 않음
-            
+        
+        
         detector = MCDropoutDetector(
             model=model,
             num_samples=args.num_samples,
             dropout_rate=args.dropout_rate,
             box_std_threshold=args.box_std_threshold,
             entropy_threshold=args.entropy_threshold,
+            conf_threshold=args.conf_threshold,
+            max_pseudo_labels=args.max_pseudo_labels,
             save_dir=mc_dropout_save_dir
         )
     
@@ -1166,10 +1450,79 @@ def main():
             
         logger.info("=== 데이터셋 초기화 완료 ===")
         
-        # GT 데이터 시각화 수행 (임시 비활성화 - hang 문제 해결용)
-        logger.info("=== GT 데이터 시각화 건너뜀 (학습 진행 우선) ===")
-        logger.warning("GT 데이터 시각화가 hang 현상을 일으켜서 일시적으로 비활성화되었습니다.")
-        logger.info("학습이 완료된 후 별도로 시각화를 실행할 수 있습니다.")
+        # GT 데이터 시각화 수행
+        logger.info("=== GT 데이터 시각화 시작 ===")
+        try:
+            from utils.visualization import visualize_gt_data
+            
+            # 시각화 저장 디렉토리 생성
+            visualization_dir = run_dir / "gt_visualization"
+            visualization_dir.mkdir(parents=True, exist_ok=True)
+            
+            # COCO 클래스 이름 가져오기
+            coco_class_names = [
+                'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
+                'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat',
+                'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack',
+                'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball',
+                'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
+                'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+                'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake',
+                'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop',
+                'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink',
+                'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+            ]
+            
+            # Labeled 데이터 시각화 (안전한 설정으로 제한)
+            logger.info("📊 Labeled GT 데이터 시각화 중...")
+            visualize_gt_data(
+                data_loader=labeled_loader,
+                class_names=coco_class_names,
+                save_dir=visualization_dir / "labeled",
+                data_type="labeled",
+                max_batches=2,  # 배치 수 제한
+                max_images_per_batch=4  # 배치당 이미지 수 제한
+            )
+            
+            # Validation 데이터 시각화
+            logger.info("📊 Validation GT 데이터 시각화 중...")
+            visualize_gt_data(
+                data_loader=val_loader,
+                class_names=coco_class_names,
+                save_dir=visualization_dir / "validation",
+                data_type="validation",
+                max_batches=1,  # 배치 수 제한
+                max_images_per_batch=4  # 배치당 이미지 수 제한
+            )
+            
+            logger.info(f"✅ GT 데이터 시각화 완료! 결과는 {visualization_dir}에 저장되었습니다.")
+            
+            # 데이터셋 통계 시각화 추가
+            logger.info("📊 데이터셋 통계 시각화 중...")
+            try:
+                from utils.visualization import visualize_dataset_statistics
+                
+                visualize_dataset_statistics(
+                    labeled_loader=labeled_loader,
+                    unlabeled_loader=unlabeled_loader,
+                    val_loader=val_loader,
+                    class_names=coco_class_names,
+                    save_dir=visualization_dir
+                )
+                
+                logger.info("✅ 데이터셋 통계 시각화 완료!")
+                
+            except Exception as e:
+                logger.warning(f"⚠️  데이터셋 통계 시각화 실패: {e}")
+                logger.warning("   학습을 계속 진행합니다...")
+            
+        except Exception as e:
+            logger.warning(f"⚠️  GT 데이터 시각화 실패: {e}")
+            logger.warning("   학습을 계속 진행합니다...")
+            import traceback
+            logger.debug(f"시각화 오류 상세: {traceback.format_exc()}")
+        
+        logger.info("=== GT 데이터 시각화 완료 ===")
         
     except Exception as e:
         logger.error(f"❌ 데이터셋 초기화 실패: {e}")
@@ -1240,14 +1593,20 @@ def main():
         # 에포크별 저장 및 평가
         is_best = False
         
-        # 검증 및 체크포인트 저장 (save_interval마다 또는 마지막 에포크)
-        should_save = (epoch + 1) % config['training']['save_interval'] == 0 or epoch == config['training']['epochs'] - 1
-        if should_save:
+        # 검증 수행 (val_interval마다 또는 마지막 에포크)
+        should_validate = (epoch + 1) % args.val_interval == 0 or epoch == config['training']['epochs'] - 1
+        
+        # 체크포인트 저장 (save_interval마다 또는 마지막 에포크)
+        should_save = (epoch + 1) % args.save_interval == 0 or epoch == config['training']['epochs'] - 1
+        
+        if should_validate or should_save:
             if is_main_process():
-                logger.info(f"💾 Checkpoint save condition met: epoch {epoch+1}, save_interval {config['training']['save_interval']}")
-            if is_main_process():
+                if should_validate:
+                    logger.info(f"🔍 Validation condition met: epoch {epoch+1}, val_interval {args.val_interval}")
+                if should_save:
+                    logger.info(f"💾 Checkpoint save condition met: epoch {epoch+1}, save_interval {args.save_interval}")
                 logger.info("-" * 60)
-                logger.info(f"💾 CHECKPOINT & EVALUATION - Epoch {epoch+1}")
+                logger.info(f"🔍 VALIDATION & CHECKPOINT - Epoch {epoch+1}")
                 logger.info("-" * 60)
             
             # MC Dropout 품질 트렌드 분석 및 저장 (10 에포크마다) - 임시 비활성화
@@ -1264,77 +1623,80 @@ def main():
             if is_main_process():
                 logger.info(f"📊 MC Dropout 분석은 10 epoch마다 실행됩니다 (현재: {epoch+1})")
             
-            # 검증 수행
-            try:
-                logger.info(f"🔍 Evaluating model at epoch {epoch+1}")
-                mAP50, mAP50_95 = evaluate_model_wrapper(
-                    model=model,
-                    val_loader=val_loader,
-                    device=args.device,
-                    epoch=epoch,
-                    save_dir=run_dir,
-                    val_data_path=args.val_data_path
-                )
+            # 검증 수행 (val_interval 조건이 만족될 때만)
+            mAP50, mAP50_95 = 0.0, 0.0  # 기본값 설정
+            if should_validate:
+                try:
+                    logger.info(f"🔍 Evaluating model at epoch {epoch+1}")
+                    mAP50, mAP50_95 = evaluate_model_wrapper(
+                        model=model,
+                        val_loader=val_loader,
+                        device=args.device,
+                        epoch=epoch,
+                        save_dir=run_dir,
+                        val_data_path=args.val_data_path
+                    )
+                    
+                    if is_main_process():
+                        logger.info(f"📊 Validation Results:")
+                        logger.info(f"   mAP@0.5: {mAP50:.4f}")
+                        logger.info(f"   mAP@0.5:0.95: {mAP50_95:.4f}")
+                        
+                        # 최고 성능 체크
+                        if mAP50 > best_map:
+                            best_map = mAP50
+                            best_map_95 = mAP50_95
+                            is_best = True
+                            logger.info(f"🎉 NEW BEST mAP@0.5: {best_map:.4f} (Previous: {mAP50:.4f})")
+                            logger.info(f"🎉 NEW BEST mAP@0.5:0.95: {best_map_95:.4f}")
+                        else:
+                            logger.info(f"   Best mAP@0.5: {best_map:.4f} (Current: {mAP50:.4f})")
+                            logger.info(f"   Best mAP@0.5:0.95: {best_map_95:.4f} (Current: {mAP50_95:.4f})")
+                        
+                except Exception as eval_error:
+                    logger.error(f"❌ Evaluation failed at epoch {epoch+1}: {eval_error}")
+                    mAP50, mAP50_95 = 0.0, 0.0
+            
+            # 체크포인트 저장 (save_interval 조건이 만족될 때만)
+            if should_save:
+                checkpoint = {
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': avg_loss,
+                    'mAP50': mAP50,
+                    'mAP50_95': mAP50_95,
+                    'best_mAP50': best_map,
+                    'best_mAP50_95': best_map_95,
+                    'config': config
+                }
                 
+                if scheduler is not None:
+                    checkpoint['scheduler_state_dict'] = scheduler.state_dict()
+                
+                # 체크포인트 저장 (메인 프로세스만)
                 if is_main_process():
-                    logger.info(f"📊 Validation Results:")
-                    logger.info(f"   mAP@0.5: {mAP50:.4f}")
-                    logger.info(f"   mAP@0.5:0.95: {mAP50_95:.4f}")
+                    logger.info("💾 Saving checkpoints...")
                     
-                    # 최고 성능 체크
-                    if mAP50 > best_map:
-                        best_map = mAP50
-                        best_map_95 = mAP50_95
-                        is_best = True
-                        logger.info(f"🎉 NEW BEST mAP@0.5: {best_map:.4f} (Previous: {mAP50:.4f})")
-                        logger.info(f"🎉 NEW BEST mAP@0.5:0.95: {best_map_95:.4f}")
-                    else:
-                        logger.info(f"   Best mAP@0.5: {best_map:.4f} (Current: {mAP50:.4f})")
-                        logger.info(f"   Best mAP@0.5:0.95: {best_map_95:.4f} (Current: {mAP50_95:.4f})")
+                    # 최신 체크포인트 저장
+                    latest_path = run_dir / 'latest_model.pt'
+                    torch.save(checkpoint, latest_path)
+                    logger.info(f"   ✓ Latest: {latest_path}")
                     
-            except Exception as eval_error:
-                logger.error(f"❌ Evaluation failed at epoch {epoch+1}: {eval_error}")
-                mAP50, mAP50_95 = 0.0, 0.0
-            
-            # 체크포인트 저장
-            checkpoint = {
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': avg_loss,
-                'mAP50': mAP50,
-                'mAP50_95': mAP50_95,
-                'best_mAP50': best_map,
-                'best_mAP50_95': best_map_95,
-                'config': config
-            }
-            
-            if scheduler is not None:
-                checkpoint['scheduler_state_dict'] = scheduler.state_dict()
-            
-            # 체크포인트 저장 (메인 프로세스만)
-            if is_main_process():
-                logger.info("💾 Saving checkpoints...")
-                
-                # 최신 체크포인트 저장
-                latest_path = run_dir / 'latest_model.pt'
-                torch.save(checkpoint, latest_path)
-                logger.info(f"   ✓ Latest: {latest_path}")
-                
-                # 최고 성능 모델 저장
-                if is_best:
-                    best_path = run_dir / 'best_model.pt'
-                    torch.save(checkpoint, best_path)
-                    logger.info(f"   🏆 Best: {best_path}")
-                
-                # 정기적 백업 (50 에포크마다)
-                if (epoch + 1) % 50 == 0:
-                    backup_path = run_dir / f'model_epoch_{epoch+1}.pt'
-                    torch.save(checkpoint, backup_path)
-                    logger.info(f"   📦 Backup: {backup_path}")
-                
-                logger.info(f"💾 Checkpoint saved successfully for epoch {epoch+1}")
-                logger.info("-" * 60)  # 구분선 추가
+                    # 최고 성능 모델 저장
+                    if is_best:
+                        best_path = run_dir / 'best_model.pt'
+                        torch.save(checkpoint, best_path)
+                        logger.info(f"   🏆 Best: {best_path}")
+                    
+                    # 정기적 백업 (50 에포크마다)
+                    if (epoch + 1) % 50 == 0:
+                        backup_path = run_dir / f'model_epoch_{epoch+1}.pt'
+                        torch.save(checkpoint, backup_path)
+                        logger.info(f"   📦 Backup: {backup_path}")
+                    
+                    logger.info(f"💾 Checkpoint saved successfully for epoch {epoch+1}")
+                    logger.info("-" * 60)  # 구분선 추가
     
     # 최종 평가 수행 (메인 프로세스만)
     final_mAP50, final_mAP50_95 = 0.0, 0.0  # 기본값 설정
