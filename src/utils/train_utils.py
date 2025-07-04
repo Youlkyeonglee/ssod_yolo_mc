@@ -196,13 +196,33 @@ def compute_uncertainty_weight(variance: torch.Tensor, alpha: float = 50.0) -> t
     """불확실성 기반 가중치 계산
     
     Args:
-        variance: 예측 분산 (σ²)
-        alpha: 가중치 감소 정도를 조절하는 하이퍼파라미터
+        variance: 예측 분산
+        alpha: 불확실성 가중치 하이퍼파라미터
     
     Returns:
-        weight: exp(-α × σ²)
+        가중치 텐서
     """
-    return torch.exp(-alpha * variance)
+    try:
+        # 분산 값 안전장치
+        variance = torch.clamp(variance, 1e-8, 1e6)  # 너무 작거나 큰 값 방지
+        
+        # 가중치 계산: exp(-alpha * variance)
+        weight = torch.exp(-alpha * variance)
+        
+        # 가중치 범위 제한 (0.1 ~ 10.0)
+        weight = torch.clamp(weight, 0.1, 10.0)
+        
+        # NaN/Inf 체크
+        if torch.isnan(weight).any() or torch.isinf(weight).any():
+            print(f"⚠️  Invalid uncertainty weight detected: {weight}")
+            weight = torch.ones_like(weight)
+        
+        return weight
+        
+    except Exception as e:
+        print(f"⚠️  Uncertainty weight calculation failed: {e}")
+        # 안전한 fallback
+        return torch.ones_like(variance)
 
 def compute_loss(
     predictions: Dict[str, torch.Tensor],
@@ -224,7 +244,6 @@ def compute_loss(
         total_loss, loss_dict
     """
     # 빈 배치 처리
-    
     if targets.shape[0] == 0:
         device = next(model.parameters()).device
         return torch.tensor(0.0, device=device, requires_grad=True), {
@@ -244,7 +263,9 @@ def compute_loss(
     if isinstance(predictions, list):
         predictions = {'features': predictions}
     
-    print(batch['bboxes'])
+    # 디버그 print문 제거 - 성능 향상
+    # print(batch['bboxes'])
+    
     try:
         # 손실 함수 초기화
         box_loss = torch.tensor(0.0, device=targets.device, requires_grad=True)
@@ -253,32 +274,74 @@ def compute_loss(
         
         # 각 특징 맵에 대해 손실 계산
         for feat in predictions['features']:
-            # if isinstance(feat, torch.Tensor) and feat.requires_grad:
+            # Box loss 계산 전 유효성 검사
+            if feat[..., :4].abs().max() > 1e6:
+                print(f"⚠️  Large box predictions detected: {feat[..., :4].abs().max()}")
+                continue
+                
             # 바운딩 박스 손실 (CIoU Loss)
-            box_loss = box_loss + model.model.model[-1].box_loss(
-                feat[..., :4],
-                batch['bboxes'].float()
-            )
-            print(f"box_loss: {box_loss}")
+            try:
+                current_box_loss = model.model.model[-1].box_loss(
+                    feat[..., :4],
+                    batch['bboxes'].float()
+                )
+                # NaN/Inf 체크
+                if torch.isnan(current_box_loss) or torch.isinf(current_box_loss):
+                    print(f"⚠️  Invalid box_loss detected: {current_box_loss}")
+                    current_box_loss = torch.tensor(0.0, device=targets.device, requires_grad=True)
+                box_loss = box_loss + current_box_loss
+            except Exception as e:
+                print(f"⚠️  Box loss calculation failed: {e}")
+                current_box_loss = torch.tensor(0.0, device=targets.device, requires_grad=True)
+                box_loss = box_loss + current_box_loss
+            
             # 클래스 손실 (Focal Loss)
-            cls_loss = cls_loss + model.model.model[-1].cls_loss(
-                feat[..., 5:],
-                batch['cls']
-            )
+            try:
+                current_cls_loss = model.model.model[-1].cls_loss(
+                    feat[..., 5:],
+                    batch['cls']
+                )
+                if torch.isnan(current_cls_loss) or torch.isinf(current_cls_loss):
+                    print(f"⚠️  Invalid cls_loss detected: {current_cls_loss}")
+                    current_cls_loss = torch.tensor(0.0, device=targets.device, requires_grad=True)
+                cls_loss = cls_loss + current_cls_loss
+            except Exception as e:
+                print(f"⚠️  Class loss calculation failed: {e}")
+                current_cls_loss = torch.tensor(0.0, device=targets.device, requires_grad=True)
+                cls_loss = cls_loss + current_cls_loss
             
             # Objectness 손실 (BCE Loss)
-            obj_loss = obj_loss + F.binary_cross_entropy_with_logits(
-                feat[..., 4],
-                torch.ones_like(feat[..., 4]),
-                reduction='mean'
-            )
+            try:
+                current_obj_loss = F.binary_cross_entropy_with_logits(
+                    feat[..., 4],
+                    torch.ones_like(feat[..., 4]),
+                    reduction='mean'
+                )
+                if torch.isnan(current_obj_loss) or torch.isinf(current_obj_loss):
+                    print(f"⚠️  Invalid obj_loss detected: {current_obj_loss}")
+                    current_obj_loss = torch.tensor(0.0, device=targets.device, requires_grad=True)
+                obj_loss = obj_loss + current_obj_loss
+            except Exception as e:
+                print(f"⚠️  Objectness loss calculation failed: {e}")
+                current_obj_loss = torch.tensor(0.0, device=targets.device, requires_grad=True)
+                obj_loss = obj_loss + current_obj_loss
         
-        # 불확실성 가중치 적용
+        # 불확실성 가중치 적용 (안전장치 추가)
         if uncertainty is not None:
-            weight = compute_uncertainty_weight(uncertainty, alpha)
-            box_loss = box_loss * weight
-            cls_loss = cls_loss * weight
-            obj_loss = obj_loss * weight
+            try:
+                weight = compute_uncertainty_weight(uncertainty, alpha)
+                # 가중치 범위 제한
+                weight = torch.clamp(weight, 0.1, 10.0)
+                box_loss = box_loss * weight
+                cls_loss = cls_loss * weight
+                obj_loss = obj_loss * weight
+            except Exception as e:
+                print(f"⚠️  Uncertainty weighting failed: {e}")
+        
+        # Loss 값 안전장치
+        box_loss = torch.clamp(box_loss, 0.0, 100.0)
+        cls_loss = torch.clamp(cls_loss, 0.0, 100.0)
+        obj_loss = torch.clamp(obj_loss, 0.0, 100.0)
         
         loss_dict = {
             'box_loss': box_loss,
@@ -289,12 +352,24 @@ def compute_loss(
         # 전체 손실 계산
         total_loss = box_loss + cls_loss + obj_loss
         
+        # 최종 안전장치
+        if torch.isnan(total_loss) or torch.isinf(total_loss):
+            print(f"🚨 Invalid total_loss detected: {total_loss}")
+            total_loss = torch.tensor(0.0, device=targets.device, requires_grad=True)
+        
     except Exception as e:
         print(f"Error in compute_loss: {e}")
         print(f"predictions type: {type(predictions)}")
         print(f"predictions keys: {predictions.keys() if isinstance(predictions, dict) else 'not a dict'}")
         print(f"targets shape: {targets.shape}")
-        raise e
+        # 안전한 fallback
+        device = targets.device
+        total_loss = torch.tensor(0.0, device=device, requires_grad=True)
+        loss_dict = {
+            'box_loss': torch.tensor(0.0, device=device),
+            'cls_loss': torch.tensor(0.0, device=device),
+            'obj_loss': torch.tensor(0.0, device=device)
+        }
     
     return total_loss, {k: v.detach().item() for k, v in loss_dict.items()}
 

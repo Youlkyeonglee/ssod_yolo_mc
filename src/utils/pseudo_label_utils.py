@@ -199,7 +199,7 @@ def update_pseudo_labels(model, unlabeled_loader, detector, conf_threshold, devi
                                                     yolo_detection = torch.zeros(5)
                                                     yolo_detection[0] = labels[i].float()  # class_id
                                                     yolo_detection[1:5] = box_coords  # x, y, w, h
-                                                    yolo_detections.append(yolo_detection)
+                                                yolo_detections.append(yolo_detection)
                                         
                                             if yolo_detections:
                                                 consistent_detections = torch.stack(yolo_detections)

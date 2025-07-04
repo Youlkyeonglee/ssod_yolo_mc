@@ -200,37 +200,21 @@ class YOLOLoss(nn.Module):
         Returns:
             Tuple of (box_loss, cls_loss, obj_loss)
         """
-        # print(f"🔍 YOLOLoss.forward 호출:")
-        # print(f"  - predictions type: {type(predictions)}")
-        # if isinstance(predictions, torch.Tensor):
-        #     print(f"  - predictions shape: {predictions.shape}")
-        # elif isinstance(predictions, (list, tuple)):
-        #     print(f"  - predictions length: {len(predictions)}")
-        #     for i, p in enumerate(predictions):
-        #         print(f"    - predictions[{i}] shape: {p.shape}")
-        # print(f"  - targets shape: {targets.shape}")
-        # print(f"  - uncertainty_weight: {uncertainty_weight}")
-        
-        # 🔧 YOLOv8 feature maps 처리
-        if isinstance(predictions, (list, tuple)):
-            # Raw feature maps인 경우 - YOLOv8 training mode output
-            if len(predictions) > 0 and len(predictions[0].shape) == 4:  # [B, C, H, W]
-                # print(f"  - YOLOv8 feature maps detected, converting to detections...")
-                # Feature maps를 detection format으로 변환
-                predictions = convert_yolov8_featuremaps_to_detections(
-                    predictions, 
-                    img_size=640,  # TODO: config에서 가져오기
-                    num_classes=80  # TODO: 동적으로 설정
-                )
-                # print(f"  - Converted predictions shape: {predictions.shape}")
-            else:
-                # 이미 processed된 predictions list인 경우 첫 번째만 사용
-                predictions = predictions[0] if len(predictions) > 0 else torch.empty(0)
-                # print(f"  - Using first prediction from list: {predictions.shape}")
+        # 디버깅 정보 추가
+        print(f"🔍 YOLOLoss forward called:")
+        print(f"  - predictions type: {type(predictions)}")
+        if isinstance(predictions, torch.Tensor):
+            print(f"  - predictions shape: {predictions.shape}")
+        elif isinstance(predictions, (list, tuple)):
+            print(f"  - predictions length: {len(predictions)}")
+            if len(predictions) > 0:
+                print(f"  - first prediction shape: {predictions[0].shape}")
+        print(f"  - targets shape: {targets.shape}")
+        print(f"  - targets device: {targets.device}")
         
         # 예측이 비어있거나 None인 경우 처리
         if predictions is None or (isinstance(predictions, torch.Tensor) and predictions.numel() == 0):
-            # print(f"  - ❌ Empty predictions, returning zero loss")
+            print(f"  - ❌ Empty predictions, returning zero loss")
             device = targets.device if targets.numel() > 0 else torch.device('cpu')
             zero_loss = torch.tensor(0.0, device=device, requires_grad=True)
             return zero_loss, zero_loss, zero_loss
@@ -244,10 +228,10 @@ class YOLOLoss(nn.Module):
         batch_size = predictions.shape[0]
         num_predictions = predictions.shape[1] if len(predictions.shape) > 1 else 0
         
-        # print(f"  - batch_size: {batch_size}, num_predictions: {num_predictions}")
+        print(f"  - batch_size: {batch_size}, num_predictions: {num_predictions}")
         
         if num_predictions == 0:
-            # print(f"  - ❌ No predictions, returning zero loss")
+            print(f"  - ❌ No predictions, returning zero loss")
             zero_loss = torch.tensor(0.0, device=device, requires_grad=True)
             return zero_loss, zero_loss, zero_loss
         
@@ -256,11 +240,11 @@ class YOLOLoss(nn.Module):
         if num_classes <= 0:
             raise ValueError(f"Invalid prediction dimensions: {predictions.shape}. Expected at least 5 + num_classes.")
         
-        # print(f"  - num_classes: {num_classes}")
+        print(f"  - num_classes: {num_classes}")
         
         # 타겟이 없는 경우 처리
         if targets.numel() == 0:
-            # print(f"  - ❌ No targets, computing objectness loss only")
+            print(f"  - ❌ No targets, computing objectness loss only")
             # 타겟이 없으면 objectness만 loss 계산 (모든 예측을 background로)
             obj_loss = F.binary_cross_entropy_with_logits(
                 predictions[:, :, 4], 
@@ -281,19 +265,19 @@ class YOLOLoss(nn.Module):
         target_cls = targets[:, 1].long()   # [num_targets] - class ids
         target_batch_idx = targets[:, 0].long()  # [num_targets] - batch indices
         
-        # print(f"  - pred_boxes shape: {pred_boxes.shape}")
-        # print(f"  - pred_obj shape: {pred_obj.shape}")
-        # print(f"  - pred_cls shape: {pred_cls.shape}")
-        # print(f"  - target_boxes shape: {target_boxes.shape}")
-        # print(f"  - target_cls shape: {target_cls.shape}")
-        # print(f"  - target_batch_idx shape: {target_batch_idx.shape}")
+        print(f"  - pred_boxes shape: {pred_boxes.shape}")
+        print(f"  - pred_obj shape: {pred_obj.shape}")
+        print(f"  - pred_cls shape: {pred_cls.shape}")
+        print(f"  - target_boxes shape: {target_boxes.shape}")
+        print(f"  - target_cls shape: {target_cls.shape}")
+        print(f"  - target_batch_idx shape: {target_batch_idx.shape}")
         
         # Positive 샘플 할당 (간단한 버전) - 복사하여 inplace 방지
         # TODO: 더 정교한 target assignment 구현 필요
         pos_mask = torch.zeros(batch_size, num_predictions, dtype=torch.bool, device=device)
         
         if len(targets) > 0:
-            # print(f"  - Processing {len(targets)} targets for positive assignment...")
+            print(f"  - Processing {len(targets)} targets for positive assignment...")
             # 각 타겟에 대해 가장 가까운 예측 찾기 (단순 버전)
             for i in range(len(targets)):
                 batch_idx = target_batch_idx[i]
@@ -311,53 +295,43 @@ class YOLOLoss(nn.Module):
                     closest_idx = torch.argmin(distances)
                     pos_mask[batch_idx, closest_idx] = True
             
-            # print(f"  - Positive samples assigned: {pos_mask.sum().item()}")
+            print(f"  - Positive samples assigned: {pos_mask.sum().item()}")
         
         # Box Loss 계산 (positive 샘플에 대해서만) - 복사하여 inplace 방지
         box_loss = torch.tensor(0.0, device=device, requires_grad=True)
         if pos_mask.any():
-            # print(f"  - Computing box loss for {pos_mask.sum().item()} positive samples...")
-            # positive 예측과 해당 타겟 매칭
+            print(f"  - Computing box loss for {pos_mask.sum().item()} positive samples...")
             pos_pred_boxes = pred_boxes[pos_mask].clone()  # [num_pos, 4] - 복사
             
             # 해당하는 타겟 박스 찾기
-            pos_indices = torch.where(pos_mask)
             pos_target_boxes = []
+            pos_indices = torch.where(pos_mask)
             
             for batch_idx, pred_idx in zip(pos_indices[0], pos_indices[1]):
-                # 해당 배치의 타겟 중에서 매칭되는 것 찾기
                 batch_targets = targets[target_batch_idx == batch_idx]
                 if len(batch_targets) > 0:
-                    # 첫 번째 타겟 사용 (더 정교한 매칭 필요) - 복사
-                    pos_target_boxes.append(batch_targets[0, 2:6].clone())
+                    pos_target_boxes.append(batch_targets[0, 2:6].float().clone())  # 복사
             
             if pos_target_boxes:
                 pos_target_boxes = torch.stack(pos_target_boxes)  # [num_pos, 4]
-                # print(f"  - pos_pred_boxes shape: {pos_pred_boxes.shape}")
-                # print(f"  - pos_target_boxes shape: {pos_target_boxes.shape}")
+                print(f"  - pos_pred_boxes shape: {pos_pred_boxes.shape}")
+                print(f"  - pos_target_boxes shape: {pos_target_boxes.shape}")
                 
                 if self.bbox_loss_type == 'giou':
-                    box_loss = bbox_giou(pos_pred_boxes, pos_target_boxes, xywh=True).mean()
-                elif self.bbox_loss_type == 'ciou':
-                    box_loss = bbox_ciou(pos_pred_boxes, pos_target_boxes, xywh=True).mean()
-                else:
-                    box_loss = F.mse_loss(pos_pred_boxes, pos_target_boxes)
+                    box_loss = bbox_giou(pos_pred_boxes, pos_target_boxes, xywh=True)
+                else:  # default: ciou
+                    box_loss = bbox_ciou(pos_pred_boxes, pos_target_boxes, xywh=True)
                 
-                # 안정성을 위해 loss 값을 양수로 클리핑
-                box_loss = torch.clamp(box_loss, min=0.0)
                 box_loss = box_loss * self.box_loss_gain
-                # print(f"  - Box loss computed: {box_loss.item()}")
-            else:
-                # print(f"  - ❌ No matching target boxes found for positive predictions")
-                pass
+                print(f"  - Box loss computed: {box_loss.mean().item():.6f}")
         else:
-            # print(f"  - ❌ No positive samples, box loss = 0")
+            print(f"  - ❌ No positive samples, box loss = 0")
             pass
         
         # Classification Loss 계산 (positive 샘플에 대해서만) - 복사하여 inplace 방지
         cls_loss = torch.tensor(0.0, device=device, requires_grad=True)
         if pos_mask.any():
-            # print(f"  - Computing classification loss for {pos_mask.sum().item()} positive samples...")
+            print(f"  - Computing classification loss for {pos_mask.sum().item()} positive samples...")
             pos_pred_cls = pred_cls[pos_mask].clone()  # [num_pos, num_classes] - 복사
             
             # 해당하는 타겟 클래스 찾기
@@ -371,8 +345,8 @@ class YOLOLoss(nn.Module):
             
             if pos_target_cls:
                 pos_target_cls = torch.stack(pos_target_cls)  # [num_pos]
-                # print(f"  - pos_pred_cls shape: {pos_pred_cls.shape}")
-                # print(f"  - pos_target_cls shape: {pos_target_cls.shape}")
+                print(f"  - pos_pred_cls shape: {pos_pred_cls.shape}")
+                print(f"  - pos_target_cls shape: {pos_target_cls.shape}")
                 
                 if self.focal_loss_gamma > 0:
                     cls_loss = focal_loss(pos_pred_cls, pos_target_cls, gamma=self.focal_loss_gamma)
@@ -380,28 +354,34 @@ class YOLOLoss(nn.Module):
                     cls_loss = F.cross_entropy(pos_pred_cls, pos_target_cls, label_smoothing=self.label_smoothing)
                 
                 cls_loss = cls_loss * self.cls_loss_gain
-                # print(f"  - Classification loss computed: {cls_loss.item()}")
+                print(f"  - Classification loss computed: {cls_loss.mean().item():.6f}")
         
         # Objectness Loss 계산 (모든 샘플에 대해) - 복사하여 inplace 방지
-        obj_targets = pos_mask.float().clone()  # positive는 1, negative는 0 - 복사
+        target_obj = pos_mask.float().clone()  # positive는 1, negative는 0
         obj_loss = F.binary_cross_entropy_with_logits(
-            pred_obj.clone(), obj_targets, reduction='mean'  # 예측도 복사
-        ) * self.obj_loss_gain
-        # print(f"  - Objectness loss computed: {obj_loss.item()}")
+            pred_obj, target_obj, reduction='none'
+        )
         
-        # Uncertainty weighting 적용
+        # Positive samples에 대해서만 objectness loss 계산
+        if pos_mask.sum() > 0:
+            pos_obj_loss = obj_loss[pos_mask].mean()
+            obj_loss = pos_obj_loss * self.obj_loss_gain
+            print(f"  - Objectness loss computed: {obj_loss.item():.6f}")
+        else:
+            obj_loss = torch.tensor(0.0, device=pred_obj.device, requires_grad=True)
+            print(f"  - ❌ No positive samples, objectness loss = 0")
+        
+        # 불확실성 가중치 적용 (선택적)
         if uncertainty_weight is not None:
-            # Uncertainty가 높을수록 낮은 가중치 적용
-            weight = 1.0 / (1.0 + uncertainty_weight)
-            box_loss = box_loss * weight.mean()
-            cls_loss = cls_loss * weight.mean()
-            obj_loss = obj_loss * weight.mean()
-            # print(f"  - Uncertainty weighting applied: weight.mean() = {weight.mean().item()}")
+            print(f"  - Applying uncertainty weight: {uncertainty_weight.mean().item():.4f}")
+            box_loss = box_loss * uncertainty_weight.mean()
+            cls_loss = cls_loss * uncertainty_weight.mean()
+            obj_loss = obj_loss * uncertainty_weight.mean()
         
-        # print(f"✅ YOLOLoss.forward 완료:")
-        # print(f"  - Final box_loss: {box_loss.item()}")
-        # print(f"  - Final cls_loss: {cls_loss.item()}")
-        # print(f"  - Final obj_loss: {obj_loss.item()}")
+        # 최종 loss 값 확인
+        print(f"  - Final box_loss: {box_loss.mean().item():.6f}")
+        print(f"  - Final cls_loss: {cls_loss.mean().item():.6f}")
+        print(f"  - Final obj_loss: {obj_loss.item():.6f}")
         
         return box_loss, cls_loss, obj_loss
 
@@ -1008,15 +988,15 @@ def convert_yolov8_featuremaps_to_detections(
 
 
 def calculate_unlabeled_loss(model, high_quality_pseudo_labels, strong_unlabeled_images, 
-                            unlabeled_weight, device, config, logger):
+                        unlabeled_weight, device, config, logger):
     """
-    Unlabeled Data Loss 계산을 위한 함수 (단순화된 구조)
+    Unlabeled data loss 계산
     
     Args:
         model: Teacher-Student 모델
-        high_quality_pseudo_labels: 고품질 pseudo label 리스트
+        high_quality_pseudo_labels: 고품질 pseudo labels
         strong_unlabeled_images: Strong augmentation된 unlabeled 이미지
-        unlabeled_weight: Unlabeled loss 가중치
+        unlabeled_weight: Unlabeled data loss 가중치
         device: 디바이스
         config: 설정
         logger: 로거
@@ -1029,100 +1009,91 @@ def calculate_unlabeled_loss(model, high_quality_pseudo_labels, strong_unlabeled
     # print(f"  - strong_unlabeled_images shape: {strong_unlabeled_images.shape}")
     # print(f"  - unlabeled_weight: {unlabeled_weight}")
     
-    try:
-        # DDP 지원
-        if hasattr(model, 'module'):
-            student_model = model.module.student_model
+    # DDP 지원
+    if hasattr(model, 'module'):
+        student_model = model.module.student_model
+    else:
+        student_model = model.student_model
+    
+    student_model.model.train()
+    
+    # Student 모델로 Strong Augmentation된 unlabeled 데이터 예측
+    student_predictions = student_model.model(strong_unlabeled_images)
+    
+    # Pseudo Label을 YOLO target 형식으로 변환 - 복사하여 inplace 방지
+    pseudo_targets = []
+    # print(f"🔍 high_quality_pseudo_labels 개수: {len(high_quality_pseudo_labels)}")
+    
+    for i, pseudo_label in enumerate(high_quality_pseudo_labels[:len(strong_unlabeled_images)]):
+        # print(f"  - Pseudo label {i}: {pseudo_label.keys()}")
+        if 'boxes' in pseudo_label and len(pseudo_label['boxes']) > 0:
+            # print(f"    - boxes shape: {pseudo_label['boxes'].shape}")
+            boxes = pseudo_label['boxes'].clone()  # 복사
+            batch_labels = torch.zeros((len(boxes), 6), device=device)
+            batch_labels[:, 0] = i  # batch index
+            batch_labels[:, 1:] = boxes  # [class_id, x, y, w, h]
+            pseudo_targets.append(batch_labels)
+            # print(f"    - batch_labels shape: {batch_labels.shape}")
         else:
-            student_model = model.student_model
+            # print(f"    - boxes 없음 또는 비어있음")
+            pass
+    
+    # print(f"🔍 pseudo_targets 개수: {len(pseudo_targets)}")
+    
+    if pseudo_targets:
+        pseudo_targets = torch.cat(pseudo_targets, dim=0)
+        # print(f"📊 Pseudo targets 생성: {pseudo_targets.shape}")
+        # Semi-Supervised YOLO Loss 계산
+        # Config에서 Semi-Supervised YOLO Loss 파라미터 읽기
+        semi_config = config['training']['loss_weights']['semi_supervised']
+        # Semi-Supervised YOLO Loss 생성
+        semi_loss_fn = YOLOLossSemiSupervised(
+            uncertainty_alpha=semi_config['uncertainty_alpha'],
+            box_loss_gain=semi_config['box_loss_gain'],
+            cls_loss_gain=semi_config['cls_loss_gain'],
+            obj_loss_gain=semi_config['obj_loss_gain'],
+            bbox_loss_type=semi_config['bbox_loss_type'],
+            focal_loss_gamma=semi_config['focal_loss_gamma'],
+            label_smoothing=semi_config['label_smoothing']
+        ).to(device)
         
-        student_model.model.train()
+        # 불확실성 가중치 계산
+        prediction_variance = None
+        if high_quality_pseudo_labels:
+            variances = []
+            for pl in high_quality_pseudo_labels[:len(strong_unlabeled_images)]:
+                reliability_score = pl['uncertainty_stats'].get('reliability_score', 0.01)
+                variance = max(0.01, 1.0 - reliability_score)
+                variances.append(variance)
+            
+            if variances:
+                prediction_variance = torch.tensor(variances, device=device).mean()
         
-        # Student 모델로 Strong Augmentation된 unlabeled 데이터 예측
-        student_predictions = student_model.model(strong_unlabeled_images)
+        # Semi-Supervised Loss 계산
+        if isinstance(student_predictions, (list, tuple)):
+            pred = student_predictions[0] if len(student_predictions) > 0 else None
+        else:
+            pred = student_predictions
         
-        # Pseudo Label을 YOLO target 형식으로 변환 - 복사하여 inplace 방지
-        pseudo_targets = []
-        # print(f"🔍 high_quality_pseudo_labels 개수: {len(high_quality_pseudo_labels)}")
-        
-        for i, pseudo_label in enumerate(high_quality_pseudo_labels[:len(strong_unlabeled_images)]):
-            # print(f"  - Pseudo label {i}: {pseudo_label.keys()}")
-            if 'boxes' in pseudo_label and len(pseudo_label['boxes']) > 0:
-                # print(f"    - boxes shape: {pseudo_label['boxes'].shape}")
-                boxes = pseudo_label['boxes'].clone()  # 복사
-                batch_labels = torch.zeros((len(boxes), 6), device=device)
-                batch_labels[:, 0] = i  # batch index
-                batch_labels[:, 1:] = boxes  # [class_id, x, y, w, h]
-                pseudo_targets.append(batch_labels)
-                # print(f"    - batch_labels shape: {batch_labels.shape}")
-            else:
-                # print(f"    - boxes 없음 또는 비어있음")
-                pass
-        
-        # print(f"🔍 pseudo_targets 개수: {len(pseudo_targets)}")
-        
-        if pseudo_targets:
-            pseudo_targets = torch.cat(pseudo_targets, dim=0)
-            # print(f"📊 Pseudo targets 생성: {pseudo_targets.shape}")
-            # Semi-Supervised YOLO Loss 계산
-            try:
-                # Config에서 Semi-Supervised YOLO Loss 파라미터 읽기
-                semi_config = config['training']['loss_weights']['semi_supervised']
-                # Semi-Supervised YOLO Loss 생성
-                semi_loss_fn = YOLOLossSemiSupervised(
-                    uncertainty_alpha=semi_config['uncertainty_alpha'],
-                    box_loss_gain=semi_config['box_loss_gain'],
-                    cls_loss_gain=semi_config['cls_loss_gain'],
-                    obj_loss_gain=semi_config['obj_loss_gain'],
-                    bbox_loss_type=semi_config['bbox_loss_type'],
-                    focal_loss_gamma=semi_config['focal_loss_gamma'],
-                    label_smoothing=semi_config['label_smoothing']
-                ).to(device)
-                
-                # 불확실성 가중치 계산
-                prediction_variance = None
-                if high_quality_pseudo_labels:
-                    variances = []
-                    for pl in high_quality_pseudo_labels[:len(strong_unlabeled_images)]:
-                        reliability_score = pl['uncertainty_stats'].get('reliability_score', 0.01)
-                        variance = max(0.01, 1.0 - reliability_score)
-                        variances.append(variance)
-                    
-                    if variances:
-                        prediction_variance = torch.tensor(variances, device=device).mean()
-                
-                # Semi-Supervised Loss 계산
-                if isinstance(student_predictions, (list, tuple)):
-                    pred = student_predictions[0] if len(student_predictions) > 0 else None
-                else:
-                    pred = student_predictions
-                
-                if pred is not None:
-                    # print(f"🔍 Loss 계산 시작:")
-                    # print(f"  - pred shape: {pred.shape}")
-                    # print(f"  - pseudo_targets shape: {pseudo_targets.shape}")
-                    # print(f"  - prediction_variance: {prediction_variance}")
-                    
-                    lbox, lcls, lobj = semi_loss_fn(pred, pseudo_targets, prediction_variance)
-                    # print("lbox: ", lbox)
-                    # print("lcls: ", lcls)
-                    # print("lobj: ", lobj)
-                    unlabeled_data_loss = (lbox + lcls + lobj) * unlabeled_weight
-                    # print(f"✅ Loss 계산 완료: lbox={lbox:.4f}, lcls={lcls:.4f}, lobj={lobj:.4f}")
-                    return unlabeled_data_loss
-                else:
-                    # print(f"❌ pred가 None입니다")
-                    pass
-                
-            except Exception as e:
-                logger.debug(f"Semi-Supervised YOLO Loss calculation failed: {e}")
-        
-        # 실패 시 기본값 반환
-        return torch.tensor(0.0, device=device, requires_grad=True)
-        
-    except Exception as e:
-        logger.debug(f"Unlabeled Data Loss calculation failed: {e}")
-        return torch.tensor(0.0, device=device, requires_grad=True)
+        if pred is not None:
+            # print(f"🔍 Loss 계산 시작:")
+            # print(f"  - pred shape: {pred.shape}")
+            # print(f"  - pseudo_targets shape: {pseudo_targets.shape}")
+            # print(f"  - prediction_variance: {prediction_variance}")
+            
+            lbox, lcls, lobj = semi_loss_fn(pred, pseudo_targets, prediction_variance)
+            # print("lbox: ", lbox)
+            # print("lcls: ", lcls)
+            # print("lobj: ", lobj)
+            unlabeled_data_loss = (lbox + lcls + lobj) * unlabeled_weight
+            # print(f"✅ Loss 계산 완료: lbox={lbox:.4f}, lcls={lcls:.4f}, lobj={lobj:.4f}")
+            return unlabeled_data_loss
+        else:
+            # print(f"❌ pred가 None입니다")
+            pass
+    
+    # 실패 시 기본값 반환
+    return torch.tensor(0.0, device=device, requires_grad=True)
 
 
 class MCDropoutConsistencyLoss(nn.Module):
@@ -1374,7 +1345,7 @@ class MCDropoutConsistencyLoss(nn.Module):
         strong_unlabeled_images: torch.Tensor
     ) -> Optional[torch.Tensor]:
         """
-        detector.predict_with_uncertainty 결과를 MC tensor로 변환
+        detector 결과를 MC tensor로 변환
         
         Args:
             detector_results: detector.predict_with_uncertainty의 결과 리스트
@@ -1383,76 +1354,71 @@ class MCDropoutConsistencyLoss(nn.Module):
         Returns:
             MC tensor (T, B, N, C) 또는 None (변환 실패 시)
         """
-        try:
-            device = strong_unlabeled_images.device
-            B = strong_unlabeled_images.shape[0]  # 배치 크기
-            
-            # detector 결과에서 MC 예측 정보 추출
-            # detector 결과는 이미 필터링된 최종 결과이므로, 
-            # MC tensor를 재구성하기 위해 단일 예측을 여러 번 복제
-            mc_samples = []
-            
-            for batch_idx in range(B):
-                if batch_idx < len(detector_results):
-                    result = detector_results[batch_idx]
+        device = strong_unlabeled_images.device
+        B = strong_unlabeled_images.shape[0]  # 배치 크기
+        
+        # detector 결과에서 MC 예측 정보 추출
+        # detector 결과는 이미 필터링된 최종 결과이므로, 
+        # MC tensor를 재구성하기 위해 단일 예측을 여러 번 복제
+        mc_samples = []
+        
+        for batch_idx in range(B):
+            if batch_idx < len(detector_results):
+                result = detector_results[batch_idx]
+                
+                if 'boxes' in result and len(result['boxes']) > 0:
+                    boxes = result['boxes']  # (N, 4)
+                    scores = result['scores']  # (N,)
+                    labels = result['labels']  # (N,)
                     
-                    if 'boxes' in result and len(result['boxes']) > 0:
-                        boxes = result['boxes']  # (N, 4)
-                        scores = result['scores']  # (N,)
-                        labels = result['labels']  # (N,)
-                        
-                        # YOLO 형식으로 변환: (N, 5+num_classes)
-                        num_classes = 80  # COCO 기본값 (config에서 가져와야 함)
-                        yolo_pred = torch.zeros(len(boxes), 5 + num_classes, device=device)
-                        
-                        # 박스 좌표 (x, y, w, h)
-                        yolo_pred[:, :4] = boxes
-                        
-                        # objectness score
-                        yolo_pred[:, 4] = scores
-                        
-                        # 클래스 one-hot encoding
-                        for i, label in enumerate(labels):
-                            if 0 <= label < num_classes:
-                                yolo_pred[i, 5 + label] = 1.0
-                        
-                        mc_samples.append(yolo_pred)
-                    else:
-                        # 빈 예측
-                        mc_samples.append(torch.zeros(0, 5 + 80, device=device))
+                    # YOLO 형식으로 변환: (N, 5+num_classes)
+                    num_classes = 80  # COCO 기본값 (config에서 가져와야 함)
+                    yolo_pred = torch.zeros(len(boxes), 5 + num_classes, device=device)
+                    
+                    # 박스 좌표 (x, y, w, h)
+                    yolo_pred[:, :4] = boxes
+                    
+                    # objectness score
+                    yolo_pred[:, 4] = scores
+                    
+                    # 클래스 one-hot encoding
+                    for i, label in enumerate(labels):
+                        if 0 <= label < num_classes:
+                            yolo_pred[i, 5 + label] = 1.0
+                    
+                    mc_samples.append(yolo_pred)
                 else:
                     # 빈 예측
                     mc_samples.append(torch.zeros(0, 5 + 80, device=device))
-            
-            # MC tensor 생성 (단일 예측을 여러 번 복제하여 MC 효과 시뮬레이션)
-            # 실제로는 detector에서 이미 MC 샘플링이 완료되었으므로, 
-            # 단일 예측을 기반으로 일관성 loss 계산
-            if mc_samples:
-                # 가장 긴 예측 길이에 맞춰 패딩
-                max_len = max(len(sample) for sample in mc_samples)
-                padded_samples = []
-                
-                for sample in mc_samples:
-                    if len(sample) < max_len:
-                        # 패딩
-                        padding = torch.zeros(max_len - len(sample), sample.shape[1], device=device)
-                        padded_sample = torch.cat([sample, padding], dim=0)
-                    else:
-                        padded_sample = sample
-                    padded_samples.append(padded_sample)
-                
-                # 배치 차원으로 스택
-                batch_tensor = torch.stack(padded_samples, dim=0)  # (B, N, C)
-                
-                # MC 차원 추가 (단일 예측을 3번 복제하여 MC 효과 시뮬레이션)
-                mc_tensor = batch_tensor.unsqueeze(0).repeat(3, 1, 1, 1)  # (3, B, N, C)
-                
-                return mc_tensor
             else:
-                return None
-                
-        except Exception as e:
-            print(f"Error converting detector result to MC tensor: {e}")
+                # 빈 예측
+                mc_samples.append(torch.zeros(0, 5 + 80, device=device))
+        
+        # MC tensor 생성 (단일 예측을 여러 번 복제하여 MC 효과 시뮬레이션)
+        # 실제로는 detector에서 이미 MC 샘플링이 완료되었으므로, 
+        # 단일 예측을 기반으로 일관성 loss 계산
+        if mc_samples:
+            # 가장 긴 예측 길이에 맞춰 패딩
+            max_len = max(len(sample) for sample in mc_samples)
+            padded_samples = []
+            
+            for sample in mc_samples:
+                if len(sample) < max_len:
+                    # 패딩
+                    padding = torch.zeros(max_len - len(sample), sample.shape[1], device=device)
+                    padded_sample = torch.cat([sample, padding], dim=0)
+                else:
+                    padded_sample = sample
+                padded_samples.append(padded_sample)
+            
+            # 배치 차원으로 스택
+            batch_tensor = torch.stack(padded_samples, dim=0)  # (B, N, C)
+            
+            # MC 차원 추가 (단일 예측을 3번 복제하여 MC 효과 시뮬레이션)
+            mc_tensor = batch_tensor.unsqueeze(0).repeat(3, 1, 1, 1)  # (3, B, N, C)
+            
+            return mc_tensor
+        else:
             return None
     
     def _compute_iou_matrix(self, boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:

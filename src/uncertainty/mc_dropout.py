@@ -3,11 +3,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 from pathlib import Path
-import matplotlib.pyplot as plt
-import seaborn as sns
-import json
-import pickle
-from datetime import datetime
 import torch.nn.functional as F
 import logging
 import time
@@ -57,11 +52,10 @@ class MCDropoutDetector(nn.Module):
             save_dir = Path("runs/train/default/mcdropout")
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
-    
+
         # 데이터 수집을 위한 변수들
         self.prediction_history = []
         self.uncertainty_history = []
-        self.baseline_predictions = []
         
         self._enable_dropout()
     
@@ -71,466 +65,22 @@ class MCDropoutDetector(nn.Module):
             if isinstance(module, nn.Dropout):
                 module.train()  # Dropout을 활성화 상태로 유지
 
-    def update_adaptive_thresholds(self, box_stds: torch.Tensor, class_entropies: torch.Tensor):
-        """
-        계산된 box_std와 class_entropy 값들을 기반으로 동적 임계값 업데이트
-        
-        Args:
-            box_stds: 현재 배치의 box_std 값들 (N, 4) 또는 (batch, N, 4)
-            class_entropies: 현재 배치의 class_entropy 값들 (N,) 또는 (batch, N)
-        """
-        if not self.adaptive_thresholds:
-            return
-        
-        with torch.no_grad():
-            # 텐서 차원 정규화
-            if len(box_stds.shape) == 3:  # (batch, N, 4)
-                box_stds = box_stds.view(-1, 4)  # (batch*N, 4)
-            if len(class_entropies.shape) == 2:  # (batch, N)
-                class_entropies = class_entropies.view(-1)  # (batch*N,)
-            
-            # 유효한 값들만 필터링 (NaN, inf 제거)
-            valid_box_mask = torch.isfinite(box_stds).all(dim=-1)
-            valid_entropy_mask = torch.isfinite(class_entropies)
-            
-            if valid_box_mask.any():
-                # box_std 평균 계산 (각 좌표별 평균의 평균)
-                valid_box_stds = box_stds[valid_box_mask]
-                current_box_std_mean = valid_box_stds.mean().item()
-                
-                # 동적 임계값 업데이트 (모멘텀 적용)
-                self.running_box_std_mean = (
-                    self.threshold_momentum * self.running_box_std_mean + 
-                    (1 - self.threshold_momentum) * current_box_std_mean
-                )
-                
-                # 임계값을 평균값의 일정 비율로 설정 (예: 평균의 80%)
-                self.box_std_threshold = self.running_box_std_mean * 0.8
-            
-            if valid_entropy_mask.any():
-                # class_entropy 평균 계산
-                valid_entropies = class_entropies[valid_entropy_mask]
-                current_entropy_mean = valid_entropies.mean().item()
-                
-                # 동적 임계값 업데이트 (모멘텀 적용)
-                self.running_entropy_mean = (
-                    self.threshold_momentum * self.running_entropy_mean + 
-                    (1 - self.threshold_momentum) * current_entropy_mean
-                )
-                
-                # 임계값을 평균값의 일정 비율로 설정 (예: 평균의 80%)
-                self.entropy_threshold = self.running_entropy_mean * 0.8
-            
-            self.threshold_update_count += 1
-            
-            # 디버깅 정보 출력 (처음 몇 번만)
-            if self.threshold_update_count <= 5:
-                print(f"🔄 동적 임계값 업데이트 #{self.threshold_update_count.item()}:")
-                if valid_box_mask.any():
-                    print(f"  - box_std: 평균={current_box_std_mean:.4f}, 임계값={self.box_std_threshold:.4f}")
-                if valid_entropy_mask.any():
-                    print(f"  - entropy: 평균={current_entropy_mean:.4f}, 임계값={self.entropy_threshold:.4f}")
-
     def get_current_thresholds(self) -> Dict[str, float]:
         """현재 동적 임계값들을 반환"""
         return {
-            'box_std_threshold': self.box_std_threshold,
-            'entropy_threshold': self.entropy_threshold,
-            'update_count': self.threshold_update_count.item(),
-            'adaptive_enabled': self.adaptive_thresholds
+                'box_std_threshold': self.box_std_threshold,
+            'entropy_threshold': self.entropy_threshold
         }
 
     def reset_adaptive_thresholds(self, box_std_threshold: float = None, entropy_threshold: float = None):
         """동적 임계값을 초기값으로 리셋"""
         if box_std_threshold is not None:
             self.box_std_threshold = box_std_threshold
-            self.running_box_std_mean = torch.tensor(box_std_threshold)
         
         if entropy_threshold is not None:
             self.entropy_threshold = entropy_threshold
-            self.running_entropy_mean = torch.tensor(entropy_threshold)
         
-        self.threshold_update_count = torch.tensor(0)
         print(f"🔄 동적 임계값 리셋: box_std={self.box_std_threshold:.4f}, entropy={self.entropy_threshold:.4f}")
-
-    def save_prediction_analysis(self, epoch: int = None):
-        """예측 분포 분석 결과를 저장 - 주석처리: 컴퓨터 멈춤 방지"""
-        print("MC Dropout analysis saving is disabled to prevent system freeze")
-        return
-        
-        # if not self.prediction_history or not self.uncertainty_history:
-        #     print("No prediction data to analyze")
-        #     return
-        
-        # # 에포크별 저장 디렉토리 생성
-        # if epoch is not None:
-        #     epoch_dir = self.save_dir / f"epoch_{epoch}"
-        # else:
-        #     epoch_dir = self.save_dir / "final"
-        # epoch_dir.mkdir(parents=True, exist_ok=True)
-        
-        # # 1. 예측 분산 분포 히스토그램
-        # self._plot_variance_distribution(epoch_dir)
-        
-        # # 2. 클래스 엔트로피 분포
-        # self._plot_entropy_distribution(epoch_dir)
-        
-        # # 3. 신뢰도-정확도 캘리브레이션 곡선
-        # self._plot_calibration_curve(epoch_dir)
-        
-        # # 4. Baseline vs MC Dropout 비교
-        # self._plot_baseline_comparison(epoch_dir)
-        
-        # # 5. 불확실성 통계 저장
-        # self._save_uncertainty_statistics(epoch_dir)
-        
-        # # 6. Raw 데이터 저장
-        # self._save_raw_data(epoch_dir)
-        
-        # print(f"MC Dropout analysis saved to {epoch_dir}")
-
-    def _plot_variance_distribution(self, save_dir: Path):
-        """예측 분산 분포 히스토그램 생성 및 저장"""
-        plt.figure(figsize=(12, 8))
-        
-        # Box variance 히스토그램 (각 좌표별로)
-        all_box_stds = []
-        for uncertainty_batch in self.uncertainty_history:
-            for result in uncertainty_batch:
-                if 'box_std' in result and len(result['box_std']) > 0:
-                    box_stds = result['box_std'].cpu().numpy()
-                    all_box_stds.extend(box_stds.flatten())
-        
-        if all_box_stds:
-            plt.subplot(2, 2, 1)
-            plt.hist(all_box_stds, bins=50, alpha=0.7, color='blue', edgecolor='black')
-            plt.title('Box Coordinate Variance Distribution')
-            plt.xlabel('Standard Deviation')
-            plt.ylabel('Frequency')
-            plt.grid(True, alpha=0.3)
-            
-            # 통계 정보 추가
-            mean_std = np.mean(all_box_stds)
-            plt.axvline(mean_std, color='red', linestyle='--', label=f'Mean: {mean_std:.4f}')
-            plt.axvline(self.box_std_threshold, color='orange', linestyle='--', 
-                       label=f'Threshold: {self.box_std_threshold}')
-            plt.legend()
-        
-        plt.tight_layout()
-        plt.savefig(save_dir / 'variance_distribution.png', dpi=300, bbox_inches='tight')
-        plt.close()
-
-    def _plot_entropy_distribution(self, save_dir: Path):
-        """클래스 엔트로피 분포 히스토그램 생성 및 저장"""
-        plt.figure(figsize=(12, 6))
-        
-        # Class entropy 히스토그램
-        all_entropies = []
-        all_box_stds = []
-        for uncertainty_batch in self.uncertainty_history:
-            for result in uncertainty_batch:
-                if 'class_entropy' in result and len(result['class_entropy']) > 0:
-                    entropies = result['class_entropy'].cpu().numpy()
-                    all_entropies.extend(entropies.flatten())
-                
-                if 'box_std' in result and len(result['box_std']) > 0:
-                    box_stds = result['box_std'].cpu().numpy()
-                    all_box_stds.extend(box_stds.flatten())
-        
-        if all_entropies:
-            plt.subplot(1, 2, 1)
-            plt.hist(all_entropies, bins=50, alpha=0.7, color='green', edgecolor='black')
-            plt.title('Class Entropy Distribution')
-            plt.xlabel('Entropy')
-            plt.ylabel('Frequency')
-            plt.grid(True, alpha=0.3)
-            
-            # 통계 정보 추가
-            mean_entropy = np.mean(all_entropies)
-            plt.axvline(mean_entropy, color='red', linestyle='--', label=f'Mean: {mean_entropy:.4f}')
-            plt.axvline(self.entropy_threshold, color='orange', linestyle='--', 
-                       label=f'Threshold: {self.entropy_threshold}')
-            plt.legend()
-            
-            # 엔트로피 vs 분산 scatter plot
-            if all_box_stds:
-                plt.subplot(1, 2, 2)
-                # 동일한 길이로 맞추기
-                min_len = min(len(all_entropies), len(all_box_stds))
-                plt.scatter(all_entropies[:min_len], all_box_stds[:min_len], 
-                           alpha=0.5, s=10)
-                plt.xlabel('Class Entropy')
-                plt.ylabel('Box Variance')
-                plt.title('Entropy vs Variance Correlation')
-                plt.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        plt.savefig(save_dir / 'entropy_distribution.png', dpi=300, bbox_inches='tight')
-        plt.close()
-
-    def _plot_calibration_curve(self, save_dir: Path):
-        """신뢰도-정확도 캘리브레이션 곡선 생성"""
-        plt.figure(figsize=(10, 8))
-        
-        # MC Dropout 신뢰도와 실제 정확도 계산
-        confidences = []
-        uncertainties = []
-        
-        for uncertainty_batch in self.uncertainty_history:
-            for result in uncertainty_batch:
-                if 'scores' in result and len(result['scores']) > 0:
-                    scores = result['scores'].cpu().numpy()
-                    confidences.extend(scores)
-                
-                if 'box_std' in result and len(result['box_std']) > 0:
-                    box_stds = result['box_std'].cpu().numpy().mean(axis=1)
-                    uncertainties.extend(box_stds)
-        
-        if confidences and uncertainties:
-            # 신뢰도 구간별 불확실성 평균 계산
-            confidence_bins = np.linspace(0, 1, 11)
-            bin_uncertainties = []
-            bin_centers = []
-            
-            for i in range(len(confidence_bins) - 1):
-                mask = (np.array(confidences) >= confidence_bins[i]) & \
-                       (np.array(confidences) < confidence_bins[i + 1])
-                if mask.sum() > 0:
-                    bin_uncertainties.append(np.mean(np.array(uncertainties)[mask]))
-                    bin_centers.append((confidence_bins[i] + confidence_bins[i + 1]) / 2)
-            
-            plt.plot(bin_centers, bin_uncertainties, 'o-', label='MC Dropout')
-            plt.xlabel('Confidence Score')
-            plt.ylabel('Average Uncertainty')
-            plt.title('Confidence vs Uncertainty Calibration')
-            plt.grid(True, alpha=0.3)
-            plt.legend()
-        
-        plt.tight_layout()
-        plt.savefig(save_dir / 'calibration_curve.png', dpi=300, bbox_inches='tight')
-        plt.close()
-
-    def _plot_baseline_comparison(self, save_dir: Path):
-        """Baseline vs MC Dropout 예측 분포 비교"""
-        if not self.baseline_predictions:
-            return
-        
-        plt.figure(figsize=(15, 10))
-        
-        # 1. 예측 신뢰도 분포 비교
-        plt.subplot(2, 3, 1)
-        mc_confidences = []
-        baseline_confidences = []
-        
-        for uncertainty_batch in self.uncertainty_history:
-            for result in uncertainty_batch:
-                if 'scores' in result and len(result['scores']) > 0:
-                    scores = result['scores'].cpu().numpy()
-                    mc_confidences.extend(scores)
-        
-        for baseline_batch in self.baseline_predictions:
-            if isinstance(baseline_batch, list):
-                for result in baseline_batch:
-                    if 'scores' in result and len(result['scores']) > 0:
-                        scores = result['scores'].cpu().numpy() if torch.is_tensor(result['scores']) else result['scores']
-                        baseline_confidences.extend(scores)
-        
-        if mc_confidences and baseline_confidences:
-            plt.hist(baseline_confidences, bins=30, alpha=0.5, label='Baseline', color='red')
-            plt.hist(mc_confidences, bins=30, alpha=0.5, label='MC Dropout', color='blue')
-            plt.xlabel('Confidence Score')
-            plt.ylabel('Frequency')
-            plt.title('Confidence Distribution Comparison')
-            plt.legend()
-            plt.grid(True, alpha=0.3)
-        
-        # 2. 검출 수 비교
-        plt.subplot(2, 3, 2)
-        mc_detection_counts = [len(result.get('scores', [])) for batch in self.uncertainty_history for result in batch]
-        baseline_detection_counts = [len(result.get('scores', [])) for batch in self.baseline_predictions for result in batch if isinstance(batch, list)]
-        
-        if mc_detection_counts and baseline_detection_counts:
-            plt.hist(baseline_detection_counts, bins=20, alpha=0.5, label='Baseline', color='red')
-            plt.hist(mc_detection_counts, bins=20, alpha=0.5, label='MC Dropout', color='blue')
-            plt.xlabel('Number of Detections')
-            plt.ylabel('Frequency')
-            plt.title('Detection Count Comparison')
-            plt.legend()
-            plt.grid(True, alpha=0.3)
-        
-        # 3. 예측 분산 감소율 계산
-        plt.subplot(2, 3, 3)
-        if hasattr(self, 'variance_reduction_rate'):
-            plt.bar(['Baseline', 'MC Dropout'], [1.0, 1.0 - self.variance_reduction_rate])
-            plt.ylabel('Relative Variance')
-            plt.title('Prediction Variance Reduction')
-            plt.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        plt.savefig(save_dir / 'baseline_comparison.png', dpi=300, bbox_inches='tight')
-        plt.close()
-
-    def _save_uncertainty_statistics(self, save_dir: Path):
-        """불확실성 통계 정보를 JSON으로 저장"""
-        stats = {
-            'timestamp': datetime.now().isoformat(),
-            'mc_dropout_config': {
-                'num_samples': self.num_samples,
-                'dropout_rate': self.dropout_rate,
-                'box_std_threshold': self.box_std_threshold,
-                'entropy_threshold': self.entropy_threshold,
-                'conf_threshold': self.conf_threshold
-            },
-            'statistics': {}
-        }
-        
-        # Box variance 통계
-        all_box_stds = []
-        for uncertainty_batch in self.uncertainty_history:
-            for result in uncertainty_batch:
-                if 'box_std' in result and len(result['box_std']) > 0:
-                    box_stds = result['box_std'].cpu().numpy()
-                    all_box_stds.extend(box_stds.flatten())
-        
-        if all_box_stds:
-            stats['statistics']['box_variance'] = {
-                'mean': float(np.mean(all_box_stds)),
-                'std': float(np.std(all_box_stds)),
-                'min': float(np.min(all_box_stds)),
-                'max': float(np.max(all_box_stds)),
-                'median': float(np.median(all_box_stds)),
-                'percentiles': {
-                    '25': float(np.percentile(all_box_stds, 25)),
-                    '75': float(np.percentile(all_box_stds, 75)),
-                    '95': float(np.percentile(all_box_stds, 95))
-                },
-                'filtered_ratio': float(np.mean(np.array(all_box_stds) < self.box_std_threshold))
-            }
-        
-        # Class entropy 통계
-        all_entropies = []
-        for uncertainty_batch in self.uncertainty_history:
-            for result in uncertainty_batch:
-                if 'class_entropy' in result and len(result['class_entropy']) > 0:
-                    entropies = result['class_entropy'].cpu().numpy()
-                    all_entropies.extend(entropies.flatten())
-        
-        if all_entropies:
-            stats['statistics']['class_entropy'] = {
-                'mean': float(np.mean(all_entropies)),
-                'std': float(np.std(all_entropies)),
-                'min': float(np.min(all_entropies)),
-                'max': float(np.max(all_entropies)),
-                'median': float(np.median(all_entropies)),
-                'filtered_ratio': float(np.mean(np.array(all_entropies) < self.entropy_threshold))
-            }
-        
-        # Detection count 통계
-        detection_counts = [len(result.get('scores', [])) for batch in self.uncertainty_history for result in batch]
-        if detection_counts:
-            stats['statistics']['detection_counts'] = {
-                'mean': float(np.mean(detection_counts)),
-                'std': float(np.std(detection_counts)),
-                'total_detections': int(np.sum(detection_counts)),
-                'total_images': len(detection_counts)
-            }
-        
-        # 예측 분산 감소율 계산 (baseline과 비교)
-        if hasattr(self, 'variance_reduction_rate'):
-            stats['statistics']['variance_reduction_rate'] = float(self.variance_reduction_rate)
-        
-        # JSON 저장
-        with open(save_dir / 'uncertainty_statistics.json', 'w') as f:
-            json.dump(stats, f, indent=2)
-
-    def _save_raw_data(self, save_dir: Path):
-        """Raw 예측 데이터를 pickle로 저장"""
-        raw_data = {
-            'prediction_history': self.prediction_history,
-            'uncertainty_history': self.uncertainty_history,
-            'baseline_predictions': self.baseline_predictions,
-            'config': {
-                'num_samples': self.num_samples,
-                'dropout_rate': self.dropout_rate,
-                'box_std_threshold': self.box_std_threshold,
-                'entropy_threshold': self.entropy_threshold,
-                'conf_threshold': self.conf_threshold
-            }
-        }
-        
-        with open(save_dir / 'raw_prediction_data.pkl', 'wb') as f:
-            pickle.dump(raw_data, f)
-
-    def add_baseline_prediction(self, baseline_result):
-        """Baseline 예측 결과 추가 (비교용)"""
-        self.baseline_predictions.append(baseline_result)
-
-    def calculate_variance_reduction_rate(self):
-        """Baseline 대비 예측 분산 감소율 계산"""
-        if not self.baseline_predictions or not self.uncertainty_history:
-            return 0.0
-        
-        # MC Dropout 예측 분산
-        mc_variances = []
-        for uncertainty_batch in self.uncertainty_history:
-            for result in uncertainty_batch:
-                if 'box_std' in result and len(result['box_std']) > 0:
-                    variances = result['box_std'].cpu().numpy() ** 2
-                    mc_variances.extend(variances.flatten())
-        
-        if not mc_variances:
-            return 0.0
-        
-        mc_mean_variance = np.mean(mc_variances)
-        
-        # Baseline은 단일 예측이므로 분산이 0이라고 가정하거나
-        # 여러 이미지에서의 예측 분산을 계산
-        baseline_variance = 1.0  # 정규화된 baseline 분산
-        
-        # 분산 감소율 계산
-        reduction_rate = (baseline_variance - mc_mean_variance) / baseline_variance
-        self.variance_reduction_rate = max(0.0, reduction_rate)
-        
-        return self.variance_reduction_rate
-
-    def create_summary_report(self, save_dir: Path = None):
-        """전체 실험에 대한 요약 보고서 생성 - 주석처리: 컴퓨터 멈춤 방지"""
-        print("MC Dropout summary report generation is disabled to prevent system freeze")
-        return
-        
-        # if save_dir is None:
-        #     save_dir = self.save_dir
-        
-        # # 1. 예측 분포 분석 저장
-        # self.save_prediction_analysis()
-        
-        # # 2. 분산 감소율 계산
-        # variance_reduction = self.calculate_variance_reduction_rate()
-        
-        # # 3. 요약 보고서 생성
-        # summary = {
-        #     'experiment_summary': {
-        #         'total_predictions': len(self.uncertainty_history),
-        #         'total_baseline_predictions': len(self.baseline_predictions),
-        #         'variance_reduction_rate': variance_reduction,
-        #         'mc_dropout_effectiveness': variance_reduction > 0.1  # 10% 이상 개선
-        #     },
-        #     'recommendations': []
-        # }
-        
-        # # 권장사항 생성
-        # if variance_reduction > 0.15:
-        #     summary['recommendations'].append("MC Dropout이 효과적으로 작동하고 있습니다. 현재 설정을 유지하세요.")
-        # elif variance_reduction > 0.05:
-        #     summary['recommendations'].append("MC Dropout 효과가 미미합니다. 샘플링 횟수나 dropout rate를 조정해보세요.")
-        # else:
-        #     summary['recommendations'].append("MC Dropout 효과가 거의 없습니다. 모델 구조나 파라미터를 재검토하세요.")
-        
-        # with open(save_dir / 'experiment_summary.json', 'w') as f:
-        #     json.dump(summary, f, indent=2)
-        
-        # print(f"MC Dropout 실험 요약 보고서가 {save_dir}에 저장되었습니다.")
-        # print(f"예측 분산 감소율: {variance_reduction:.2%}")
 
     @torch.no_grad()
     def predict_with_uncertainty_legacy(
@@ -540,7 +90,7 @@ class MCDropoutDetector(nn.Module):
         save_predictions: bool = True
     ) -> Dict[str, Any]:
         """
-        MC Dropout을 사용하여 불확실성을 포함한 예측 수행
+        MC Dropout을 사용하여 불확실성을 포함한 예측 수행 (NMS 기반 클러스터링 방식)
         
         Args:
             image: 입력 이미지 (경로 또는 텐서)
@@ -552,7 +102,6 @@ class MCDropoutDetector(nn.Module):
         """
         # 모델이 있는 디바이스 자동 감지
         try:
-            # DDP 모델인 경우 module 속성 사용
             if hasattr(self.model, 'module'):
                 model_device = next(self.model.module.parameters()).device
             else:
@@ -562,50 +111,43 @@ class MCDropoutDetector(nn.Module):
                 device = model_device
             elif isinstance(device, str) and device != str(model_device):
                 print(f"⚠️  Device mismatch in legacy: model on {model_device}, requested {device}")
-                device = model_device  # 모델 디바이스로 강제 설정
+                device = model_device
         except Exception as e:
             print(f"❌ Device setup error in legacy: {e}")
-            # 기본 디바이스 사용
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
         # 이미지를 텐서로 변환
         if isinstance(image, str):
-            # 이미지 로드 및 전처리 로직 추가 필요
             pass
         elif isinstance(image, torch.Tensor):
             try:
                 image = image.to(device)
             except Exception as e:
                 print(f"❌ Image device transfer error: {e}")
-                device = image.device  # 이미지가 있는 디바이스 사용
+                device = image.device
         
-        # 여러 번의 추론 수행
-        predictions = []
+        # MC Dropout 샘플링 수행
+        nms_results = []
         self.model.train()  # MC Dropout 활성화
         
         try:
-            for _ in range(self.num_samples):
-                # 안전한 모델 호출 (DDP/DataParallel 지원)
+            for sample_idx in range(self.num_samples):
+                # 모델 예측
                 try:
-                    # 모델과 이미지가 같은 디바이스에 있는지 확인
                     if hasattr(self.model, 'module'):
-                        # DDP 또는 DataParallel 모델
                         model_device = next(self.model.module.parameters()).device
                     else:
                         model_device = next(self.model.parameters()).device
                     
-                    # 이미지를 모델 디바이스로 이동
                     if image.device != model_device:
                         print(f"🔄 Moving image from {image.device} to model device {model_device}")
                         image = image.to(model_device)
                     
-                    # 모델 호출
                     pred_output = self.model(image)
                     
                 except RuntimeError as device_error:
                     if "device" in str(device_error).lower():
                         print(f"🚨 Device error in MC Dropout: {device_error}")
-                        # 이미지 디바이스로 모델을 이동시도 (위험하지만 최후 수단)
                         try:
                             print(f"🔄 Moving model to image device: {image.device}")
                             self.model = self.model.to(image.device)
@@ -616,256 +158,268 @@ class MCDropoutDetector(nn.Module):
                     else:
                         raise device_error
                 
-                # 딕셔너리 형태인 경우 predictions 키에서 실제 예측값 추출
+                # 예측 결과 추출
                 if isinstance(pred_output, dict):
                     pred = pred_output['predictions']
                 else:
                     pred = pred_output
                 
-                predictions.append(pred)
+                # Feature map 결합 및 NMS 적용
+                processed_pred = self._process_prediction(pred)
+                nms_boxes = self._apply_nms_to_sample(processed_pred, sample_idx)
+                nms_results.append(nms_boxes)
             
-            # 예측 결과 처리
-            processed_predictions = []
-            for pred in predictions:
-                if isinstance(pred, (list, tuple)):
-                    # 여러 feature map 결합
-                    batch_pred = []
-                    expected_classes = None
-                    m_count = 0
-                    for i, p in enumerate(pred):
-                        # 텐서 차원 확인
-                        current_classes = p.shape[-1] - 5
-                        
-                        # 첫 번째 feature map에서 예상 클래스 수 설정
-                        if expected_classes is None:
-                            expected_classes = current_classes
-                        
-                        # 클래스 수가 일치하지 않는 경우 디버깅 정보 출력 후 스킵
-                        if current_classes != expected_classes:
-                            print(f"Warning: Feature map {i} has {current_classes} classes, expected {expected_classes}. Skipping this feature map.")
-                            print(f"  Feature map shape: {p.shape}")
-                            print(f"  Current classes: {current_classes}, Expected: {expected_classes}")
-                            continue
-                        else:
-                            m_count += 1
-                            # print(f"How many time same shape: {m_count}.")
-                            # print(f"Feature map shape: {p.shape}")
-                            # print(f"Current classes: {current_classes}, Expected: {expected_classes}")
-                        # (batch, anchors, grid_h, grid_w, 5+num_classes) -> (batch, -1, 5+num_classes)
-                        reshaped = p.view(p.shape[0], -1, p.shape[-1])
-                        batch_pred.append(reshaped)
-                    
-                    # 유효한 feature map이 있는 경우에만 concatenate
-                    if batch_pred:
-                        pred = torch.cat(batch_pred, dim=1)
-                    else:
-                        print("Warning: No valid feature maps found. Using empty tensor.")
-                        # 빈 텐서 생성 (배치 크기와 예상 클래스 수 사용)
-                        if expected_classes is not None:
-                            pred = torch.zeros(p.shape[0], 0, 5 + expected_classes).to(p.device)
-                        else:
-                            pred = torch.zeros(1, 0, 96).to(p.device)  # COCO 기본값
-                
-                processed_predictions.append(pred)
+            # NMS 결과들 간의 클러스터링 및 불확실성 계산
+            final_results = self._compute_uncertainty_from_nms_results(nms_results)
             
-            # 모든 예측을 결합
-            try:
-                all_predictions = torch.stack(processed_predictions)  # (num_samples, batch, N, 5+num_classes)
-                # print(f"Combined predictions shape: {all_predictions.shape}")
-                
-                # 신뢰도 기반 필터링
-                conf_scores = all_predictions[..., 4]
-                # print(f"conf_scores: {conf_scores}")
-                confident_mask = conf_scores > self.conf_threshold
-                # print(f"confident_mask: {confident_mask}")
-                # 박스와 클래스 분리
-                boxes = all_predictions[..., :4]  # (num_samples, batch, N, 4)
-                class_scores = all_predictions[..., 5:]  # (num_samples, batch, N, num_classes)
-                
-                # 평균과 불확실성 계산
-                mean_boxes = torch.mean(boxes, dim=0)  # (batch, N, 4)
-                box_std = torch.std(boxes, dim=0)  # (batch, N, 4)
-                
-                # 박스 좌표 검증 및 수정
-                try:
-                    # 이미지 크기 추정 (박스 좌표에서)
-                    if mean_boxes.numel() > 0:
-                        max_coords = mean_boxes.max(dim=0)[0].max(dim=0)[0]
-                        estimated_img_size = (int(max_coords[1].item()), int(max_coords[0].item()))
-                    else:
-                        estimated_img_size = (640, 640)  # 기본값
-                    
-                    # 박스 좌표 검증
-                    for batch_idx in range(mean_boxes.shape[0]):
-                        batch_boxes = mean_boxes[batch_idx].cpu().numpy()
-                        validated_boxes, valid_mask = validate_box_coordinates(batch_boxes, estimated_img_size)
-                        
-                        # 유효한 박스만 유지
-                        if np.any(valid_mask):
-                            mean_boxes[batch_idx] = torch.from_numpy(validated_boxes[valid_mask]).to(mean_boxes.device)
-                            box_std[batch_idx] = box_std[batch_idx][valid_mask]
-                            confident_mask[0, batch_idx] = confident_mask[0, batch_idx][valid_mask]
-                        else:
-                            # 모든 박스가 유효하지 않은 경우 빈 텐서로 설정
-                            mean_boxes[batch_idx] = torch.empty(0, 4, device=mean_boxes.device)
-                            box_std[batch_idx] = torch.empty(0, 4, device=box_std.device)
-                            confident_mask[0, batch_idx] = torch.empty(0, dtype=torch.bool, device=confident_mask.device)
-                            
-                except Exception as e:
-                    print(f"⚠️ 박스 좌표 검증 중 오류 발생: {e}")
-                    # 검증 실패 시 원본 사용
-                
-                # 클래스 엔트로피 계산
-                mean_class_probs = torch.softmax(torch.mean(class_scores, dim=0), dim=-1)
-                eps = 1e-10
-                class_entropy = -torch.sum(mean_class_probs * torch.log(mean_class_probs + eps), dim=-1)
-                
-                # 결과 반환
-                results = []
-                batch_box_std_list = []
-                batch_entropy_list = []
-                for batch_idx in range(mean_boxes.shape[0]):
-                    # 배치별 마스크 생성 (inplace operation 방지를 위해 복사)
-                    print(f"🔍 임계값 비교:")
-                    print(f"📦 필터링 전 전체 박스 수: {box_std[batch_idx].shape[0]}")
-                    # 기본 필터링 조건 적용
-                    batch_mask = (box_std[batch_idx].mean(dim=-1) < self.box_std_threshold) & \
-                                (class_entropy[batch_idx] < self.entropy_threshold) & \
-                                confident_mask[0, batch_idx]
-                    # max_pseudo_labels에 따른 추가 필터링
-                    if hasattr(self, 'max_pseudo_labels') and self.max_pseudo_labels > 0:
-                        # confidence 점수로 정렬하여 상위 N개만 선택
-                        conf_scores_batch = conf_scores[0, batch_idx][batch_mask]
-                        if len(conf_scores_batch) > self.max_pseudo_labels:
-                            _, top_indices = torch.topk(conf_scores_batch, self.max_pseudo_labels)
-                            new_mask = torch.zeros_like(batch_mask)
-                            new_mask[torch.where(batch_mask)[0][top_indices]] = True
-                            batch_mask = new_mask
-                    print(f"✅ 필터링 후 남은 박스 수: {batch_mask.sum().item()}")
-                    
-                    
-                    # 클래스 예측 확률이 가장 높은 클래스 선택
-                    class_probs = mean_class_probs[batch_idx].clone()  # 복사하여 inplace 방지
-                    
-                    # 안전한 argmax 처리: 클래스 수 체크
-                    num_classes = class_probs.shape[-1]
-                    predicted_classes = torch.argmax(class_probs, dim=-1)
-                    
-                    # 클래스 인덱스 안전성 체크
-                    max_class_id = predicted_classes.max().item() if predicted_classes.numel() > 0 else -1
-                    if max_class_id >= num_classes:
-                        print(f"Warning: predicted class {max_class_id} >= num_classes {num_classes}")
-                        # 유효 범위로 클램핑 (복사하여 inplace 방지)
-                        predicted_classes = torch.clamp(predicted_classes.clone(), 0, num_classes - 1)
-                    
-                    # 추가 안전성 체크: 음수 클래스 처리
-                    predicted_classes = torch.clamp(predicted_classes.clone(), 0, max(num_classes - 1, 0))
-                    
-                    # 필터링된 결과 저장 (복사하여 inplace 방지)
-                    filtered_boxes = mean_boxes[batch_idx][batch_mask].clone()
-                    filtered_scores = conf_scores[0, batch_idx][batch_mask].clone()
-                    filtered_classes = predicted_classes[batch_mask].clone()
-                    filtered_box_std = box_std[batch_idx][batch_mask].clone()
-                    filtered_class_entropy = class_entropy[batch_idx][batch_mask].clone()
-                    
-                    # 박스 좌표 유효성 검사 및 클램핑 (마이너스 값 문제 해결)
-                    if filtered_boxes.numel() > 0:
-                        filtered_boxes = torch.clamp(filtered_boxes, 0.0, 1.0)
-                        valid_box_mask = (filtered_boxes[:, 2] >= 0.01) & (filtered_boxes[:, 3] >= 0.01)
-                        if not valid_box_mask.all():
-                            filtered_boxes = filtered_boxes[valid_box_mask]
-                            filtered_scores = filtered_scores[valid_box_mask]
-                            filtered_classes = filtered_classes[valid_box_mask]
-                            filtered_box_std = filtered_box_std[valid_box_mask]
-                            filtered_class_entropy = filtered_class_entropy[valid_box_mask]
-                    
-                    # 필터링된 클래스도 다시 한번 체크
-                    if filtered_classes.numel() > 0:
-                        max_filtered_class = filtered_classes.max().item()
-                        if max_filtered_class >= num_classes:
-                            print(f"Warning: filtered class {max_filtered_class} >= num_classes {num_classes}")
-                            filtered_classes = torch.clamp(filtered_classes.clone(), 0, num_classes - 1)
-                    
-                    result = {
-                        'boxes': filtered_boxes,
-                        'scores': filtered_scores,
-                        'labels': filtered_classes,
-                        'box_std': filtered_box_std,
-                        'class_entropy': filtered_class_entropy
-                    }
-                    results.append(result)
-                    # 동적 임계값 후보값 저장
-                    if filtered_box_std.numel() > 0:
-                        batch_box_std_list.append(filtered_box_std.mean().item())
-                    if filtered_class_entropy.numel() > 0:
-                        batch_entropy_list.append(filtered_class_entropy.mean().item())
-                
-                # === 동적 임계값 업데이트 ===
-                if batch_box_std_list:
-                    new_box_std_threshold = float(np.mean(batch_box_std_list))
-                    # 안전장치: 임계값이 너무 작아지지 않도록 제한
-                    min_box_std_threshold = 0.01  # 최소 임계값
-                    self.box_std_threshold = max(new_box_std_threshold, min_box_std_threshold)
-                else:
-                    # 필터링된 박스가 없는 경우: 전체 박스의 평균을 사용하여 임계값 완화
-                    if box_std.numel() > 0:
-                        overall_box_std_mean = box_std.mean().item()
-                        # 전체 평균의 1.5배로 임계값 설정 (더 관대하게)
-                        self.box_std_threshold = overall_box_std_mean * 1.5
-                        print(f"⚠️  필터링된 박스 없음 - 전체 평균 기반 임계값 설정: {self.box_std_threshold:.4f}")
-                
-                if batch_entropy_list:
-                    new_entropy_threshold = float(np.mean(batch_entropy_list))
-                    # 안전장치: 임계값이 너무 작아지지 않도록 제한
-                    min_entropy_threshold = 0.01  # 최소 임계값
-                    self.entropy_threshold = max(new_entropy_threshold, min_entropy_threshold)
-                else:
-                    # 필터링된 박스가 없는 경우: 전체 엔트로피의 평균을 사용하여 임계값 완화
-                    if class_entropy.numel() > 0:
-                        overall_entropy_mean = class_entropy.mean().item()
-                        # 전체 평균의 1.5배로 임계값 설정 (더 관대하게)
-                        self.entropy_threshold = overall_entropy_mean * 1.5
-                        print(f"⚠️  필터링된 박스 없음 - 전체 평균 기반 임계값 설정: {self.entropy_threshold:.4f}")
-                
-                print(f"[Dynamic] box_std_threshold: {self.box_std_threshold:.4f}, entropy_threshold: {self.entropy_threshold:.4f}")
-                
-                # 추가 안전장치: 여전히 필터링된 박스가 없는 경우 임계값을 더 완화
-                total_filtered_boxes = sum(len(result['boxes']) for result in results)
-                if total_filtered_boxes == 0:
-                    print("🚨 모든 배치에서 필터링된 박스가 0개 - 임계값을 더 완화합니다")
-                    # 임계값을 2배로 완화
-                    self.box_std_threshold *= 2.0
-                    self.entropy_threshold *= 2.0
-                    print(f"[Emergency] box_std_threshold: {self.box_std_threshold:.4f}, entropy_threshold: {self.entropy_threshold:.4f}")
-                    
-                    # 재필터링 시도 (선택적)
-                    # results = self._refilter_with_relaxed_thresholds(mean_boxes, box_std, class_entropy, conf_scores, predicted_classes, num_classes)
-                
-                # 예측 히스토리에 저장 - 메모리 절약을 위해 제한적으로 저장
-                if save_predictions and len(self.uncertainty_history) < 10:  # 최대 10개만 저장
-                    self.uncertainty_history.append(results)
-                return results
-                
-            except RuntimeError as e:
-                print(f"Error stacking predictions: {str(e)}")
-                return None
+            # 예측 히스토리에 저장
+            if save_predictions and len(self.uncertainty_history) < 10:
+                self.uncertainty_history.append(final_results)
+            
+            return final_results
             
         except Exception as e:
             print(f"Error in MC Dropout prediction: {str(e)}")
-            print(f"Prediction shapes:")
-            for i, p in enumerate(predictions):
-                if isinstance(p, (list, tuple)):
-                    print(f"Sample {i} (list):", [x.shape for x in p])
-                    print(f"Sample {i} last dimensions:", [x.shape[-1] for x in p])
-                    print(f"Sample {i} classes per feature map:", [x.shape[-1] - 5 for x in p])
-                    if i == 0:
-                        print(f"First prediction feature dimensions:", p[0].shape[-1])
-                        if len(p[0].shape) >= 3:
-                            print(f"First prediction example shape:", p[0][0, 0, :5])
-                else:
-                    print(f"Sample {i}:", p.shape)
-                    print(f"Sample {i} classes:", p.shape[-1] - 5 if len(p.shape) > 0 else "Unknown")
             return None
+    
+    def _process_prediction(self, pred):
+        """예측 결과 처리 및 feature map 결합"""
+        if isinstance(pred, (list, tuple)):
+            batch_pred = []
+            expected_classes = None
+
+            for i, p in enumerate(pred):
+                current_classes = p.shape[-1] - 5
+                
+                if expected_classes is None:
+                    expected_classes = current_classes
+                
+                if current_classes != expected_classes:
+                    print(f"Warning: Feature map {i} has {current_classes} classes, expected {expected_classes}. Skipping.")
+                    continue
+    
+                reshaped = p.view(p.shape[0], -1, p.shape[-1])
+                batch_pred.append(reshaped)
+            
+            if batch_pred:
+                pred = torch.cat(batch_pred, dim=1)
+            else:
+                if expected_classes is not None:
+                    pred = torch.zeros(p.shape[0], 0, 5 + expected_classes).to(p.device)
+                else:
+                    pred = torch.zeros(1, 0, 85).to(p.device)
+    
+        return pred
+    
+    def _apply_nms_to_sample(self, pred, sample_idx):
+        """각 MC 샘플에 NMS 적용"""
+        batch_size = pred.shape[0]
+        nms_results = []
+        
+        for batch_idx in range(batch_size):
+                # 신뢰도 기반 필터링
+            conf_scores = pred[batch_idx, :, 4]
+            confident_mask = conf_scores > self.conf_threshold
+                
+            if not confident_mask.any():
+                nms_results.append({
+                    'boxes': torch.empty(0, 4, device=pred.device),
+                    'scores': torch.empty(0, device=pred.device),
+                    'labels': torch.empty(0, dtype=torch.long, device=pred.device)
+                })
+                continue
+            
+            # 필터링된 예측
+            filtered_pred = pred[batch_idx, confident_mask]
+            boxes = filtered_pred[:, :4]
+            scores = filtered_pred[:, 4]
+            class_scores = filtered_pred[:, 5:]
+            
+            # 클래스 예측
+            predicted_classes = torch.argmax(class_scores, dim=-1)
+            
+            # 박스 좌표 검증
+            if boxes.numel() > 0:
+                boxes_np = boxes.cpu().numpy()
+                validated_boxes, valid_mask = validate_box_coordinates(boxes_np, (640, 640))
+                
+                if np.any(valid_mask):
+                    valid_boxes = torch.from_numpy(validated_boxes[valid_mask]).to(boxes.device)
+                    valid_scores = scores[valid_mask]
+                    valid_classes = predicted_classes[valid_mask]
+                else:
+                    valid_boxes = torch.empty(0, 4, device=boxes.device)
+                    valid_scores = torch.empty(0, device=scores.device)
+                    valid_classes = torch.empty(0, dtype=torch.long, device=predicted_classes.device)
+            else:
+                valid_boxes = torch.empty(0, 4, device=boxes.device)
+                valid_scores = torch.empty(0, device=scores.device)
+                valid_classes = torch.empty(0, dtype=torch.long, device=predicted_classes.device)
+            
+            nms_results.append({
+                'boxes': valid_boxes,
+                'scores': valid_scores,
+                'labels': valid_classes
+            })
+        
+        return nms_results
+    
+    def _compute_uncertainty_from_nms_results(self, nms_results):
+        """NMS 결과들 간의 클러스터링 및 불확실성 계산"""
+        batch_size = len(nms_results[0])
+        final_results = []
+        
+        for batch_idx in range(batch_size):
+            # 모든 MC 샘플에서 해당 배치의 박스들 수집
+            all_boxes = []
+            all_scores = []
+            all_labels = []
+            
+            for sample_idx, sample_result in enumerate(nms_results):
+                boxes = sample_result[batch_idx]['boxes']
+                scores = sample_result[batch_idx]['scores']
+                labels = sample_result[batch_idx]['labels']
+                
+                if len(boxes) > 0:
+                    all_boxes.extend(boxes.cpu().numpy())
+                    all_scores.extend(scores.cpu().numpy())
+                    all_labels.extend(labels.cpu().numpy())
+            
+            if len(all_boxes) == 0:
+                final_results.append({
+                    'boxes': torch.empty(0, 4),
+                    'scores': torch.empty(0),
+                    'labels': torch.empty(0, dtype=torch.long),
+                    'box_std': torch.empty(0, 4),
+                    'class_entropy': torch.empty(0)
+                })
+                continue
+            
+            # 박스 클러스터링
+            clusters = self._cluster_similar_boxes(all_boxes, all_scores, all_labels)
+            
+            # 각 클러스터에서 불확실성 계산
+            final_boxes = []
+            final_scores = []
+            final_labels = []
+            final_box_stds = []
+            final_entropies = []
+            
+            for cluster in clusters:
+                if len(cluster['boxes']) >= 2:  # 최소 2개 이상의 박스가 있어야 불확실성 계산 가능
+                    # 클러스터 내 박스들의 평균과 표준편차 계산
+                    cluster_boxes = torch.stack(cluster['boxes'])
+                    cluster_scores = torch.stack(cluster['scores'])
+                    cluster_labels = torch.stack(cluster['labels'])
+                    
+                    mean_box = torch.mean(cluster_boxes, dim=0)
+                    box_std = torch.std(cluster_boxes, dim=0)
+                    
+                    # 불확실성 계산 (상대적 표준편차)
+                    relative_std = box_std / (mean_box + 1e-8)
+                    uncertainty = relative_std.mean().item()
+                    
+                    # 클러스터 크기에 따른 신뢰도 조정
+                    support_ratio = len(cluster['boxes']) / self.num_samples
+                    
+                    # 불확실성 임계값 체크 (클러스터 크기도 고려)
+                    if uncertainty < self.box_std_threshold and support_ratio > 0.3:  # 최소 30% 샘플에서 검출
+                        final_boxes.append(mean_box)
+                        final_scores.append(torch.mean(cluster_scores))
+                        final_labels.append(torch.mode(cluster_labels)[0])  # 가장 빈번한 클래스
+                        final_box_stds.append(box_std)
+                        final_entropies.append(torch.tensor(uncertainty))
+            
+            if final_boxes:
+                    result = {
+                    'boxes': torch.stack(final_boxes),
+                    'scores': torch.stack(final_scores),
+                    'labels': torch.stack(final_labels),
+                    'box_std': torch.stack(final_box_stds),
+                    'class_entropy': torch.stack(final_entropies)
+                }
+            else:
+                result = {
+                    'boxes': torch.empty(0, 4),
+                    'scores': torch.empty(0),
+                    'labels': torch.empty(0, dtype=torch.long),
+                    'box_std': torch.empty(0, 4),
+                    'class_entropy': torch.empty(0)
+                }
+            
+            final_results.append(result)
+        
+        return final_results
+    
+    def _cluster_similar_boxes(self, boxes, scores, labels, iou_threshold=0.5):
+        """IoU 기반으로 유사한 박스들을 클러스터링"""
+        if len(boxes) == 0:
+            return []
+        
+        # 박스를 numpy 배열로 변환
+        boxes = np.array(boxes)
+        scores = np.array(scores)
+        labels = np.array(labels)
+        
+        clusters = []
+        used = [False] * len(boxes)
+        
+        for i in range(len(boxes)):
+            if used[i]:
+                continue
+            
+            # 새로운 클러스터 시작
+            cluster = {
+                'boxes': [torch.from_numpy(boxes[i]).float()],
+                'scores': [torch.tensor(scores[i]).float()],
+                'labels': [torch.tensor(labels[i]).long()]
+            }
+            used[i] = True
+            
+            # 유사한 박스들 찾기
+            for j in range(i + 1, len(boxes)):
+                if used[j]:
+                    continue
+                
+                # 같은 클래스이고 IoU가 임계값 이상인 경우
+                if labels[i] == labels[j]:
+                    iou = self._compute_iou(boxes[i], boxes[j])
+                    if iou >= iou_threshold:
+                        cluster['boxes'].append(torch.from_numpy(boxes[j]).float())
+                        cluster['scores'].append(torch.tensor(scores[j]).float())
+                        cluster['labels'].append(torch.tensor(labels[j]).long())
+                        used[j] = True
+            
+            clusters.append(cluster)
+        
+        return clusters
+    
+    def _compute_iou(self, box1, box2):
+        """두 박스 간의 IoU 계산"""
+        # YOLO 형식 (x_center, y_center, width, height)를 (x1, y1, x2, y2)로 변환
+        x1_1, y1_1, w1, h1 = box1
+        x1_2, y1_2, w2, h2 = box2
+        
+        x2_1, y2_1 = x1_1 + w1, y1_1 + h1
+        x2_2, y2_2 = x1_2 + w2, y1_2 + h2
+        
+        # 교집합 계산
+        x1_i = max(x1_1, x1_2)
+        y1_i = max(y1_1, y1_2)
+        x2_i = min(x2_1, x2_2)
+        y2_i = min(y2_1, y2_2)
+        
+        if x2_i <= x1_i or y2_i <= y1_i:
+            return 0.0
+        
+        intersection = (x2_i - x1_i) * (y2_i - y1_i)
+        
+        # 합집합 계산
+        area1 = w1 * h1
+        area2 = w2 * h2
+        union = area1 + area2 - intersection
+        
+        return intersection / union if union > 0 else 0.0
     
     def _compute_mean_boxes(self, predictions: List[torch.Tensor]) -> torch.Tensor:
         """여러 예측의 평균 박스 계산
@@ -912,29 +466,42 @@ class MCDropoutDetector(nn.Module):
         
         return box_std
     
-    def _compute_class_entropy(self, predictions: List[torch.Tensor]) -> torch.Tensor:
-        """클래스 예측의 엔트로피 계산
-        
-        Args:
-            predictions: 여러 번의 클래스 예측 결과 리스트
-        
-        Returns:
-            클래스 예측의 엔트로피
+    def _compute_entropy_regularization(self, mc_tensor: torch.Tensor) -> torch.Tensor:
         """
-        if not predictions:
-            return torch.zeros(0)
+        Entropy Regularization 계산
         
-        # 클래스 예측 확률 추출 및 softmax 적용
-        class_probs = torch.stack([torch.softmax(pred, dim=-1) for pred in predictions])
-        
-        # 평균 확률 계산
-        mean_probs = torch.mean(class_probs, dim=0)
-        
-        # 엔트로피 계산 (확률이 0인 경우 처리)
-        eps = 1e-10
-        entropy = -torch.sum(mean_probs * torch.log(mean_probs + eps), dim=-1)
-        
-        return entropy
+        각 MC 샘플의 예측 엔트로피를 정규화하여 confident predictions 유도
+        """
+        try:
+            T, B, N, C = mc_tensor.shape
+            
+            # Softmax를 class probabilities에만 적용
+            cls_probs = F.softmax(mc_tensor[..., 5:], dim=-1)  # (T, B, N, num_classes)
+            
+            # 각 MC 샘플의 class entropy 계산
+            eps = 1e-8
+            cls_entropy = -(cls_probs * torch.log(cls_probs + eps)).sum(dim=-1)  # (T, B, N)
+            
+            # MC 샘플들의 평균 엔트로피
+            mean_entropy = cls_entropy.mean(dim=0)  # (B, N)
+            
+            # Objectness confidence도 고려
+            obj_conf = torch.sigmoid(mc_tensor[..., 4])  # (T, B, N)
+            obj_entropy = -(obj_conf * torch.log(obj_conf + eps) + 
+                           (1 - obj_conf) * torch.log(1 - obj_conf + eps)).mean(dim=0)
+            
+            total_entropy = mean_entropy + 0.5 * obj_entropy  # (B, N)
+            
+            # NaN/Inf 체크
+            if torch.isnan(total_entropy).any() or torch.isinf(total_entropy).any():
+                print(f"⚠️  Invalid entropy loss detected: {total_entropy}")
+                total_entropy = torch.zeros_like(total_entropy)
+            
+            return total_entropy  # (B, N)
+            
+        except Exception as e:
+            print(f"⚠️  Entropy regularization calculation failed: {e}")
+            return torch.zeros(mc_tensor.shape[1], mc_tensor.shape[2], device=mc_tensor.device)
     
     def filter_predictions(
         self,
@@ -1017,8 +584,7 @@ class MCDropoutDetector(nn.Module):
                 }
             }
             enhanced_results.append(enhanced_result)
-        # print("="*80)
-        # print("enhanced_results: ", enhanced_results)
+        
         return enhanced_results
 
 class MCLoss(nn.Module):
@@ -1120,21 +686,36 @@ class MCLoss(nn.Module):
         
         Epistemic Loss = Var[E[p(y|x,θ)]] = 예측 분포들 간의 분산
         """
-        # MC 샘플들의 평균 예측: (B, N, C)
-        mean_pred = mc_tensor.mean(dim=0)
+        try:
+            # MC 샘플들의 평균 예측: (B, N, C)
+            mean_pred = mc_tensor.mean(dim=0)
+            
+            # 각 MC 샘플과 평균 간의 분산 계산
+            epistemic_variance = ((mc_tensor - mean_pred.unsqueeze(0)) ** 2).mean(dim=0)
+                
+                # 분산 값 안전장치
+            epistemic_variance = torch.clamp(epistemic_variance, 1e-8, 1e6)
+            
+            # Box regression과 classification 분리
+            box_epistemic = epistemic_variance[..., :4]  # bbox coordinates
+            cls_epistemic = epistemic_variance[..., 5:]  # class probabilities
+            
+            # Temperature scaling 적용
+            box_loss = (box_epistemic / self.temperature).sum(dim=-1)
+            cls_loss = (cls_epistemic / self.temperature).sum(dim=-1)
         
-        # 각 MC 샘플과 평균 간의 분산 계산
-        epistemic_variance = ((mc_tensor - mean_pred.unsqueeze(0)) ** 2).mean(dim=0)
-        
-        # Box regression과 classification 분리
-        box_epistemic = epistemic_variance[..., :4]  # bbox coordinates
-        cls_epistemic = epistemic_variance[..., 5:]  # class probabilities
-        
-        # Temperature scaling 적용
-        box_loss = (box_epistemic / self.temperature).sum(dim=-1)
-        cls_loss = (cls_epistemic / self.temperature).sum(dim=-1)
-        
-        return box_loss + cls_loss  # (B, N)
+            total_loss = box_loss + cls_loss  # (B, N)
+            
+            # NaN/Inf 체크
+            if torch.isnan(total_loss).any() or torch.isinf(total_loss).any():
+                print(f"⚠️  Invalid epistemic loss detected: {total_loss}")
+                total_loss = torch.zeros_like(total_loss)
+            
+            return total_loss
+            
+        except Exception as e:
+            print(f"⚠️  Epistemic loss calculation failed: {e}")
+            return torch.zeros(mc_tensor.shape[1], mc_tensor.shape[2], device=mc_tensor.device)
     
     def _compute_predictive_variance_loss(self, mc_tensor: torch.Tensor) -> torch.Tensor:
         """
@@ -1142,43 +723,31 @@ class MCLoss(nn.Module):
         
         예측 분산을 직접적으로 최소화하여 consistent predictions 유도
         """
-        # 각 위치별 MC 샘플 분산 계산
-        pred_variance = mc_tensor.var(dim=0)  # (B, N, C)
+        try:
+            # 각 위치별 MC 샘플 분산 계산
+            pred_variance = mc_tensor.var(dim=0)  # (B, N, C)
+            
+            # 분산 값 안전장치
+            pred_variance = torch.clamp(pred_variance, 1e-8, 1e6)
         
-        # Box와 Class 분리하여 가중치 적용
-        box_variance = pred_variance[..., :4].sum(dim=-1)  # bbox variance
-        obj_variance = pred_variance[..., 4]               # objectness variance  
-        cls_variance = pred_variance[..., 5:].sum(dim=-1)  # class variance
+            # Box와 Class 분리하여 가중치 적용
+            box_variance = pred_variance[..., :4].sum(dim=-1)  # bbox variance
+            obj_variance = pred_variance[..., 4]               # objectness variance  
+            cls_variance = pred_variance[..., 5:].sum(dim=-1)  # class variance
+            
+            # 가중치: box > class > objectness (bbox 정확도 우선)
+            weighted_variance = 2.0 * box_variance + 1.5 * cls_variance + 1.0 * obj_variance
         
-        # 가중치: box > class > objectness (bbox 정확도 우선)
-        weighted_variance = 2.0 * box_variance + 1.5 * cls_variance + 1.0 * obj_variance
+            # NaN/Inf 체크
+            if torch.isnan(weighted_variance).any() or torch.isinf(weighted_variance).any():
+                print(f"⚠️  Invalid variance loss detected: {weighted_variance}")
+                weighted_variance = torch.zeros_like(weighted_variance)
         
-        return weighted_variance  # (B, N)
+            return weighted_variance  # (B, N)
     
-    def _compute_entropy_regularization(self, mc_tensor: torch.Tensor) -> torch.Tensor:
-        """
-        Entropy Regularization 계산
-        
-        각 MC 샘플의 예측 엔트로피를 정규화하여 confident predictions 유도
-        """
-        T, B, N, C = mc_tensor.shape
-        
-        # Softmax를 class probabilities에만 적용
-        cls_probs = F.softmax(mc_tensor[..., 5:], dim=-1)  # (T, B, N, num_classes)
-        
-        # 각 MC 샘플의 class entropy 계산
-        eps = 1e-8
-        cls_entropy = -(cls_probs * torch.log(cls_probs + eps)).sum(dim=-1)  # (T, B, N)
-        
-        # MC 샘플들의 평균 엔트로피
-        mean_entropy = cls_entropy.mean(dim=0)  # (B, N)
-        
-        # Objectness confidence도 고려
-        obj_conf = torch.sigmoid(mc_tensor[..., 4])  # (T, B, N)
-        obj_entropy = -(obj_conf * torch.log(obj_conf + eps) + 
-                       (1 - obj_conf) * torch.log(1 - obj_conf + eps)).mean(dim=0)
-        
-        return mean_entropy + 0.5 * obj_entropy  # (B, N)
+        except Exception as e:
+            print(f"⚠️  Variance loss calculation failed: {e}")
+            return torch.zeros(mc_tensor.shape[1], mc_tensor.shape[2], device=mc_tensor.device)
     
     def _compute_adaptive_weights(
         self, 
@@ -1249,5 +818,3 @@ class MCLoss(nn.Module):
                 'epistemic_aleatoric_separation': separation_ratio,
                 'total_epistemic_uncertainty': epistemic_var
             } 
-
- 

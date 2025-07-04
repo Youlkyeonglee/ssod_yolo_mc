@@ -2,7 +2,7 @@ model:
   version: "v8"  # v8, v9, v10, v11, v12
   size: "m"      # n, s, m, l, x
   task: "detect" # detect, segment, pose, classify
-  pretrained: false  # pre-trained 가중치 사용하지 않음
+  pretrained: true  # pre-trained 가중치 사용하지 않음
   name: "yolov8m"
   dropout:
     enabled: true
@@ -35,12 +35,7 @@ gpu:
   auto_detect: true                # 자동 GPU 감지 (true일 경우 gpu_ids 무시)
   gpu_ids: [0, 1, 2, 3]           # 사용할 GPU ID 리스트 (auto_detect가 false일 때 사용)
   
-  # 분산 학습 설정
-  distributed:
-    enabled: true                  # 분산 학습 활성화 여부
-    backend: "nccl"               # 분산 백엔드 (nccl, gloo)
-    master_addr: "localhost"      # 마스터 노드 주소
-    master_port: "12355"          # 마스터 노드 포트
+
     
   # 메모리 관리
   memory:
@@ -82,7 +77,7 @@ data:
   batch_size: 16  # 배치 크기
   num_workers: 0  # DataLoader 멀티프로세싱 비활성화 (에러 방지)
   augment: true  # 데이터 증강 사용 여부
-  labeled_ratio: 10.0  # 레이블된 데이터 비율 (1, 2, 5, 10)
+  labeled_ratio: 1.0  # 레이블된 데이터 비율 (1, 2, 5, 10)
   seed: 1 # 데이터 분포 시드 (1,2,3,4,5)
   
   # Teacher-Student Augmentation 전략
@@ -114,14 +109,90 @@ inference:
 
 training:
   # 학습 파라미터
-  epochs: 20
-  learning_rate: 0.001
+  epochs: 100
+  batch_size: 16  # 배치 크기 줄임
+  learning_rate: 0.001  # 학습률 낮춤 (기존 0.01에서)
   weight_decay: 0.0005
   momentum: 0.937
   warmup_epochs: 3
   warmup_momentum: 0.8
   warmup_bias_lr: 0.1
+  box: 7.5  # box loss gain
+  cls: 0.5  # cls loss gain  
+  dfl: 1.5  # dfl loss gain
+  pose: 12.0  # pose loss gain (only for pose models)
+  kobj: 2.0  # keypoint obj loss gain (only for pose models)
+  label_smoothing: 0.0  # label smoothing epsilon
+  nbs: 64  # nominal batch size
+  overlap_mask: True  # masks should overlap during training (only train segment)
+  mask_ratio: 4  # mask downsample ratio (only train segment)
+  dropout: 0.0  # use dropout regularization (only train classify)
+  val: True  # val during training
+  plots: True
+  save: True
+  save_period: -1  # Save checkpoint every x epochs (disabled if < 1)
+  cache: False  # cache images for faster training (RAM)
+  device: ''  # cuda device, i.e. 0 or 0,1,2,3 or cpu
+  workers: 8  # number of worker threads for data loading (per RANK in DDP mode)
+  project: ''  # save to project/name
+  name: ''  # save to project/name
+  exist_ok: False  # existing project/name ok, do not increment
+  pretrained: True  # use pretrained model
+  optimizer: 'auto'  # optimizer (SGD, Adam, etc.)
+  verbose: True  # verbose output
+  seed: 0  # random seed for reproducibility
+  deterministic: True  # deterministic training
+  single_cls: False  # train as single-class dataset
+  rect: False  # rectangular training
+  cos_lr: False  # cosine learning rate scheduler
+  close_mosaic: 10  # disable mosaic augmentation for final 10 epochs
+  resume: False  # resume training from last checkpoint
+  amp: True  # Automatic Mixed Precision (AMP) training
+  fraction: 1.0  # dataset fraction to train on (experimental)
+  profile: False  # profile ONNX and TensorRT speeds during training for loggers
+  freeze: null  # (int or list, optional) freeze first n layers, or freeze list of layer indices during training
+  multi_scale: False  # vary img-size +/- 50% (experimental)
   
+  # Semi-supervised learning settings
+  semi_supervised:
+    enabled: true
+    pseudo_label_start_epoch: 5  # 의사 레이블링 시작 에포크
+    unlabeled_weight: 0.5      # unlabeled 데이터 손실 가중치
+    pseudo_label_weight: 0.5   # pseudo label 가중치 (호환성)
+    conf_threshold: 0.1           # 의사 레이블 신뢰도 임계값
+    max_pseudo_labels: null       # 최대 의사 레이블 개수 (null: 제한 없음)
+    num_mc_samples: 10            # MC Dropout 샘플링 횟수
+    
+    # 🎯 분포 기반 Consistency Loss 설정
+    consistency_loss_type: "kl_divergence"  # 'kl_divergence', 'js_divergence', 'kl_js_combined', 'wasserstein', 'cosine'
+    consistency_temperature: 3.0            # Temperature scaling for softmax distributions
+    bbox_consistency_weight: 1.0            # BBox coordinates consistency 가중치
+    class_consistency_weight: 1.0           # Class logits consistency 가중치
+    
+    # 🎯 MC Dropout Consistency Loss 설정 (신규) - 임시 비활성화
+    mc_consistency_weight: 0.0              # MC Consistency Loss 가중치 (임시 비활성화)
+    mc_consistency_alpha: 1.0               # Pseudo label consistency weight
+    mc_consistency_beta: 0.5                # MC uncertainty regularization weight
+    mc_consistency_temperature: 1.0         # Temperature scaling for uncertainty
+    mc_uncertainty_threshold: 0.1           # 불확실성 임계값
+    mc_use_adaptive_weighting: true         # 적응적 가중치 사용 여부
+    obj_consistency_weight: 1.0             # Objectness consistency 가중치
+    
+    # MC Dropout 설정
+    uncertainty:
+      box_std_threshold: 5.0           # bbox 표준편차/불확실성 임계값
+      entropy_threshold: 5.0           # 클래스 예측 불확실성/엔트로피 임계값
+      min_detections: 3              # 유효한 의사 레이블로 간주하기 위한 최소 탐지 횟수
+      confidence_threshold: 0.1       # 신뢰도 임계값
+      reliability_threshold: 0.3      # 다층 신뢰도 평가 임계값
+      # 동적 임계값 설정
+      adaptive_thresholds: true       # 동적 임계값 조정 활성화
+      threshold_momentum: 0.9         # 임계값 업데이트 모멘텀 (0.9 = 90% 이전값 + 10% 새값)
+      threshold_ratio: 0.8            # 평균값 대비 임계값 비율 (0.8 = 평균의 80%)
+    uncertainty_weight: 5.0           # pseudo label loss 가중치
+    uncertainty_alpha: 5.0            # 불확실성 기반 가중치 조정
+    consistency_weight: 0.1           # MC consistency loss 가중치
+    
   # 저장 설정
   save_interval: 1  # 매 에포크마다 저장 및 평가
   val_interval: 5      # 매 에포크마다 검증
@@ -130,15 +201,25 @@ training:
   # Semi-supervised 학습 설정
   loss_weights:
     supervised:
-      box_loss_gain: 7.5
-      cls_loss_gain: 0.5
-      obj_loss_gain: 1.0
+      box_loss_gain: 3.0
+      cls_loss_gain: 0.3
+      obj_loss_gain: 0.2
       bbox_loss_type: "ciou"
       focal_loss_gamma: 0.0
       label_smoothing: 0.0
     semi_supervised:
+      box_loss_gain: 3.5
+      cls_loss_gain: 0.3
+      obj_loss_gain: 0.2
+      bbox_loss_type: "ciou"
+      focal_loss_gamma: 0.0
+      label_smoothing: 0.0
+      uncertainty_alpha: 5.0
+      uncertainty_weight: 5.0
+      consistency_weight: 0.1
+      num_mc_samples: 10
       enabled: true
-      pseudo_label_start_epoch: 5  # 의사 레이블링 시작 에포크
+      pseudo_label_start_epoch: 70  # 의사 레이블링 시작 에포크
       unlabeled_weight: 0.5      # unlabeled 데이터 손실 가중치
       pseudo_label_weight: 0.5   # pseudo label 가중치 (호환성)
       conf_threshold: 0.1           # 의사 레이블 신뢰도 임계값
@@ -173,7 +254,6 @@ training:
       uncertainty_weight: 5.0           # pseudo label loss 가중치
       uncertainty_alpha: 5.0            # 불확실성 기반 가중치 조정
       consistency_weight: 0.1           # MC consistency loss 가중치
-      num_mc_samples: 10                # MC Dropout 샘플링 횟수
   
   # 옵티마이저 설정
   optimizer:

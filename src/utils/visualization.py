@@ -290,10 +290,19 @@ def visualize_gt_data(
                 images, labels = batch
                 img_paths = None
             
+            # 변수 초기화를 더 안전하게
+            batch_images = None
+            batch_labels = None
+            empty_predictions = None
+            
             # 안전한 이미지 처리 (transform된 이미지 사용)
-            batch_images = images[:max_images_per_batch]
-            batch_labels = labels[:max_images_per_batch]
-            empty_predictions = [None] * len(batch_images)
+            if images is not None and labels is not None:
+                batch_images = images[:max_images_per_batch]
+                batch_labels = labels[:max_images_per_batch]
+                empty_predictions = [None] * len(batch_images)
+            else:
+                print(f"Warning: Invalid batch data for batch {batch_idx}")
+                continue
             
             # 시각화 및 저장
             save_path = save_dir / f'{data_type}_gt_batch_{batch_idx + 1}.png'
@@ -307,7 +316,7 @@ def visualize_gt_data(
                 save_path=save_path,
                 max_images=max_images_per_batch
             )
-            
+                
             # 레이블 통계 출력
             total_objects = 0
             valid_images = 0
@@ -315,7 +324,7 @@ def visualize_gt_data(
                 if labels_per_img is not None and len(labels_per_img) > 0:
                     valid_images += 1
                     total_objects += len(labels_per_img)
-            
+                
             print(f"  - Batch {batch_idx + 1}: {len(batch_images)} images, {valid_images} with labels, {total_objects} total objects")
             
             batch_count += 1
@@ -378,6 +387,7 @@ def visualize_batch_safe(
             else:
                 img_np = img
             
+            # 이미지 표시
             plt.imshow(img_np)
             plt.axis('off')
             
@@ -566,7 +576,7 @@ Top 5 Classes:
                 f.write(f"{name}: {size:,} images\n")
             f.write(f"\nTotal Objects: {total_objects:,}\n")
             f.write(f"Classes with Objects: {len([c for c in class_counts.values() if c > 0])}\n")
- 
+
 def plot_metrics(metrics: Dict[str, List[float]], save_path: Path) -> None:
     """학습 메트릭 시각화
 

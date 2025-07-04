@@ -340,7 +340,7 @@ def evaluate_custom(model, val_loader, config, args, device):
                 predictions_tensor = torch.cat(all_predictions, dim=0)
             else:
                 predictions_tensor = torch.empty((0, 6))
-            
+    
             # 타겟 결과 연결
             if len(all_targets) > 0:
                 targets_tensor = torch.cat(all_targets, dim=0)
